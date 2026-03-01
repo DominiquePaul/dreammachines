@@ -138,8 +138,8 @@ done
 ### ACT Inference / Eval (real robot)
 
 ```bash
-POLICY=pcb_placement_1st_item_act_48acl_10000
-DATASET_NAME=eval_{$POLICY}
+POLICY=pcb_placement_1st_item_act_48acl-010000
+DATASET_NAME="eval_${POLICY}"
 HF_USER=dopaul
 CAM_WIDTH=640
 CAM_HEIGHT=480
@@ -152,11 +152,11 @@ RIGHT_FOLLOWER_PORT=/dev/serial/by-path/platform-a80aa10000.usb-usb-0:4.2.1.1:1.
 
 uv run lerobot-record \
   --robot.type=bi_dk1_follower \
-  --robot.left_arm_port=${LEFT_FOLLOWER_PORT} \
-  --robot.right_arm_port=${RIGHT_FOLLOWER_PORT} \
+  --robot.left_arm_port="${LEFT_FOLLOWER_PORT}" \
+  --robot.right_arm_port="${RIGHT_FOLLOWER_PORT}" \
   --robot.id=my_robot_id \
-  --policy.path=${HF_USER}/{$POLICY} \
-  --dataset.repo_id=${HF_USER}/{$DATASET_NAME} \
+  --policy.path="${HF_USER}/${POLICY}" \
+  --dataset.repo_id="${HF_USER}/${DATASET_NAME}" \
   --dataset.single_task="Take a PCB from the box and place it in the testbed" \
   --dataset.num_episodes=10 \
   --robot.cameras='{top: {type: opencv, index_or_path: "'$CAM_TOP'", width: '$CAM_WIDTH', height: '$CAM_HEIGHT', fps: '$CAM_FPS', backend: 200, fourcc: MJPG}, left_wrist: {type: opencv, index_or_path: "'$CAM_LEFT'", width: '$CAM_WIDTH', height: '$CAM_HEIGHT', fps: '$CAM_FPS', backend: 200, fourcc: MJPG}, right_wrist: {type: opencv, index_or_path: "'$CAM_RIGHT'", width: '$CAM_WIDTH', height: '$CAM_HEIGHT', fps: '$CAM_FPS', backend: 200, fourcc: MJPG}}' \
