@@ -5,17 +5,20 @@
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)
+- [Naming Convention](#naming-convention)
 - [Hugging Face Data & Model Management](#hugging-face-data--model-management)
 - [Makefile Quick Reference](#makefile-quick-reference)
   - [Robot & Recording](#robot--recording)
+  - [Training](#training)
+  - [Quick Eval (real robot)](#quick-eval-real-robot)
   - [Job & Checkpoint Management](#job--checkpoint-management)
-- [Training Models](#training-models)
+- [Training Configs](#training-configs)
+  - [Config file format](#config-file-format)
+  - [Creating a new config](#creating-a-new-config)
+- [Raw Training Commands (reference)](#raw-training-commands-reference)
   - [ACT](#act)
-  - [ACT Inference / Eval (real robot)](#act-inference--eval-real-robot)
   - [Diffusion Policy (DP)](#diffusion-policy-dp)
-  - [Diffusion Policy Inference / Eval (real robot)](#diffusion-policy-inference--eval-real-robot)
   - [pi0.5 (pi05)](#pi05-pi05)
-  - [pi0.5 Inference / Eval (real robot)](#pi05-inference--eval-real-robot)
 
 ## Prerequisites
 
@@ -23,24 +26,41 @@
 hf auth login
 ```
 
+## Naming Convention
+
+All HF model repos follow this pattern going forward:
+
+```
+{dataset}_{policy}[-{variant}]-{checkpoint}
+```
+
+- **dataset** -- short alias for the training dataset (e.g. `pcb100x`, `pcb_v1`)
+- **policy** -- policy type (e.g. `act`, `dp`, `pi05`)
+- **variant** -- optional experiment tag (e.g. `novae`, `b32`, `kl10`)
+- **checkpoint** -- zero-padded step number (e.g. `010000`)
+
+Examples:
+
+| Config name | HF model repo (with checkpoint) | Eval dataset |
+|-------------|--------------------------------|--------------|
+| `pcb100x_act` | `dopaul/pcb100x_act-010000` | `dopaul/eval_pcb100x_act-010000` |
+| `pcb100x_dp` | `dopaul/pcb100x_dp-002000` | `dopaul/eval_pcb100x_dp-002000` |
+| `pcb_v1_pi05` | `dopaul/pcb_v1_pi05-001000` | `dopaul/eval_pcb_v1_pi05-001000` |
+
+The config filename doubles as the `job_name` and `output_dir` name, keeping everything aligned.
+
 ## Hugging Face Data & Model Management
 
 Upload a dataset:
 
 ```bash
-hf upload dopaul/pcb_placement_100x_1st_item /home/dominique/.cache/huggingface/lerobot/dopaul/pcb_placement_100x_1st_item . --repo-type dataset
+hf upload dopaul/pcb_placement_100x_1st_item ~/.cache/huggingface/lerobot/dopaul/pcb_placement_100x_1st_item . --repo-type dataset
 ```
 
 Download a dataset:
 
 ```bash
-hf download dopaul/DATASET_NAME --repo-type dataset --local-dir /home/dominique/.cache/huggingface/lerobot/dopaul/DATASET_NAME
-```
-
-Upload a model:
-
-```bash
-hf upload dopaul/pcb_placement_v1_act_001000 /teamspace/jobs/act-50-pcb-placing-samples/artifacts/ledream/outputs/train/pcb_placement_v1_act_baseline/checkpoints/001000/pretrained_model
+hf download dopaul/DATASET_NAME --repo-type dataset --local-dir ~/.cache/huggingface/lerobot/dopaul/DATASET_NAME
 ```
 
 ## Makefile Quick Reference
@@ -62,6 +82,66 @@ Override defaults with variables, e.g.:
 
 ```bash
 make birecord DATASET_REPO_ID=dopaul/my_dataset DATASET_NUM_EPISODES=50
+```
+
+### Training
+
+Training configs live in `configs/*.json`. Each file defines a full experiment (dataset, policy type, hyperparameters).
+
+List available configs:
+
+```bash
+make list-configs
+```
+
+```
+CONFIG                    POLICY       DATASET
+------                    ------       -------
+pcb100x_act               act          dopaul/pcb_placement_100x_1st_item
+pcb100x_dp                diffusion    dopaul/pcb_placement_100x_1st_item
+pcb_v1_pi05               pi05         dopaul/pcb_placement_v1
+```
+
+Print the training command (for pasting into Lightning AI job UI):
+
+```bash
+make train-cmd CONFIG=pcb100x_act
+```
+
+Run training locally:
+
+```bash
+make train CONFIG=pcb100x_act
+```
+
+Override any parameter on the fly:
+
+```bash
+make train CONFIG=pcb100x_act OVERRIDES="--steps=50000 --batch_size=32"
+```
+
+### Quick Eval (real robot)
+
+Run any HF model on the bimanual DK1 robot with a single command:
+
+```bash
+make eval MODEL=dopaul/pcb100x_act-010000
+```
+
+This auto-generates the eval dataset name (`dopaul/eval_pcb100x_act-010000`) and fills in all camera/port defaults.
+
+For throwaway tests where you don't care about the eval dataset:
+
+```bash
+make eval MODEL=dopaul/pcb100x_act-010000 EPHEMERAL=true
+```
+
+`EPHEMERAL=true` deletes the local eval dataset before and after the run, avoiding "already exists" errors and saving disk space.
+
+Other overrides:
+
+```bash
+make eval MODEL=dopaul/pcb100x_dp-002000 EVAL_EPISODES=5 EVAL_TIME_S=20 EVAL_VELOCITY=0.3
 ```
 
 ### Job & Checkpoint Management
@@ -92,21 +172,67 @@ Upload the latest checkpoint from a job to Hugging Face:
 make upload-latest JOB=100x-pcb-act-b16
 ```
 
-Upload a specific checkpoint:
+Upload a specific checkpoint or with a custom repo name:
 
 ```bash
 make upload-latest JOB=100x-pcb-act-b16 CKPT=004000
-```
-
-Upload with a custom HF repo name:
-
-```bash
-make upload-latest JOB=100x-pcb-act-b16 REPO=my_custom_model_name
+make upload-latest JOB=100x-pcb-act-b16 REPO=pcb100x_act-010000
 ```
 
 The default HF user is `dopaul`. Override with `HF_USER=someone_else`.
 
-## Training Models
+## Training Configs
+
+### Config file format
+
+Configs are minimal JSON files in `configs/`. They only contain the fields you care about -- everything else uses lerobot defaults. The format matches lerobot's `train_config.json` (draccus).
+
+Example (`configs/pcb100x_act.json`):
+
+```json
+{
+    "dataset": {
+        "repo_id": "dopaul/pcb_placement_100x_1st_item"
+    },
+    "policy": {
+        "type": "act",
+        "device": "cuda",
+        "use_amp": true,
+        "chunk_size": 48,
+        "n_action_steps": 30,
+        "use_vae": true,
+        "kl_weight": 10.0,
+        "optimizer_lr": 3e-5,
+        "optimizer_lr_backbone": 3e-5
+    },
+    "batch_size": 16,
+    "steps": 10000,
+    "save_checkpoint": true,
+    "save_freq": 2000,
+    "log_freq": 100,
+    "wandb": { "enable": true }
+}
+```
+
+The `output_dir` and `job_name` are auto-set by the Makefile to match the config filename (e.g. `pcb100x_act`), so they don't need to be in the JSON.
+
+### Creating a new config
+
+1. Copy an existing config and rename it following the naming convention:
+
+```bash
+cp configs/pcb100x_act.json configs/pcb100x_act_novae.json
+```
+
+2. Edit the fields you want to change (e.g. set `"use_vae": false`)
+3. Verify with `make list-configs`
+4. Generate the command with `make train-cmd CONFIG=pcb100x_act_novae`
+
+You can also create a config from an existing checkpoint's `train_config.json` -- just strip it down to the fields you need.
+
+## Raw Training Commands (reference)
+
+The `make train` workflow above is preferred. These raw commands are kept as reference.
 
 ### ACT
 
@@ -137,50 +263,6 @@ lerobot-train \
   --wandb.enable=true \
   --policy.push_to_hub=true \
   --policy.repo_id=${HF_USER}/act_policy
-
-# Upload selected checkpoints to separate model repos.
-for CKPT in 002000 004000 006000 008000 010000; do
-  hf upload ${HF_USER}/${BASE_REPO}-${CKPT} \
-    outputs/train/${JOB_NAME}/checkpoints/${CKPT}/pretrained_model \
-    . \
-    --repo-type model
-done
-```
-
-### ACT Inference / Eval (real robot)
-
-```bash
-POLICY=pcb_placement_1st_item_act_48acl-010000
-DATASET_NAME="eval_${POLICY}"
-HF_USER=dopaul
-CAM_WIDTH=640
-CAM_HEIGHT=480
-CAM_FPS=30
-CAM_TOP=/dev/v4l/by-path/platform-a80aa10000.usb-usb-0:3.1:1.0-video-index0
-CAM_LEFT=/dev/v4l/by-path/platform-a80aa10000.usb-usb-0:4.2.1.2:1.0-video-index0
-CAM_RIGHT=/dev/v4l/by-path/platform-a80aa10000.usb-usb-0:4.2.1.3:1.0-video-index0
-LEFT_FOLLOWER_PORT=/dev/serial/by-path/platform-a80aa10000.usb-usb-0:4.2.1.4:1.0
-RIGHT_FOLLOWER_PORT=/dev/serial/by-path/platform-a80aa10000.usb-usb-0:4.2.1.1:1.0
-
-uv run lerobot-record \
-  --robot.type=bi_dk1_follower \
-  --robot.left_arm_port="${LEFT_FOLLOWER_PORT}" \
-  --robot.right_arm_port="${RIGHT_FOLLOWER_PORT}" \
-  --robot.id=my_robot_id \
-  --policy.path="${HF_USER}/${POLICY}" \
-  --dataset.repo_id="${HF_USER}/${DATASET_NAME}" \
-  --dataset.single_task="Take a PCB from the box and place it in the testbed" \
-  --dataset.num_episodes=10 \
-  --robot.cameras='{top: {type: opencv, index_or_path: "'$CAM_TOP'", width: '$CAM_WIDTH', height: '$CAM_HEIGHT', fps: '$CAM_FPS', backend: 200, fourcc: MJPG}, left_wrist: {type: opencv, index_or_path: "'$CAM_LEFT'", width: '$CAM_WIDTH', height: '$CAM_HEIGHT', fps: '$CAM_FPS', backend: 200, fourcc: MJPG}, right_wrist: {type: opencv, index_or_path: "'$CAM_RIGHT'", width: '$CAM_WIDTH', height: '$CAM_HEIGHT', fps: '$CAM_FPS', backend: 200, fourcc: MJPG}}' \
-  --dataset.episode_time_s=25 \
-  --dataset.reset_time_s=0 \
-  --dataset.streaming_encoding=true \
-  --dataset.encoder_threads=1 \
-  --dataset.push_to_hub=false \
-  --dataset.vcodec=auto \
-  --play_sounds=false \
-  --display_data=false \
-  --robot.joint_velocity_scaling=0.5
 ```
 
 ### Diffusion Policy (DP)
@@ -188,16 +270,13 @@ uv run lerobot-record \
 ```bash
 HF_USER=dopaul
 DATASET=pcb_placement_100x_1st_item
-POLICY_REPO=${HF_USER}/pcb_placement_v1_diffusion_policy
 JOB_NAME=pcb_placement_100x_1st_item_diffusion
-BASE_REPO=pcb_placement_100x_1st_item_diffusion
 
 lerobot-train \
-  --dataset.repo_id=dopaul/pcb_placement_100x_1st_item \
+  --dataset.repo_id=${HF_USER}/${DATASET} \
   --policy.type=diffusion \
-  --output_dir=outputs/train/pcb_placement_100x_1st_item_diffusion \
-  --job_name=pcb_placement_100x_1st_item_diffusion \
-  --policy.repo_id=dopaul/pcb_placement_v1_diffusion_policy \
+  --output_dir=outputs/train/${JOB_NAME} \
+  --job_name=${JOB_NAME} \
   --policy.device=cuda \
   --policy.use_amp=true \
   --batch_size=64 \
@@ -207,50 +286,6 @@ lerobot-train \
   --save_checkpoint=true \
   --save_freq=1000 \
   --wandb.enable=true
-
-# Upload selected checkpoints to separate model repos.
-for CKPT in 001000 002000 003000 004000 005000; do
-  hf upload ${HF_USER}/${BASE_REPO}-${CKPT} \
-    outputs/train/${JOB_NAME}/checkpoints/${CKPT}/pretrained_model \
-    . \
-    --repo-type model
-done
-```
-
-### Diffusion Policy Inference / Eval (real robot)
-
-```bash
-POLICY=pcb_placement_100x_1st_item_diffusion-002000
-DATASET_NAME="eval_${POLICY}"
-HF_USER=dopaul
-CAM_WIDTH=640
-CAM_HEIGHT=480
-CAM_FPS=30
-CAM_TOP=/dev/v4l/by-path/platform-a80aa10000.usb-usb-0:3.1:1.0-video-index0
-CAM_LEFT=/dev/v4l/by-path/platform-a80aa10000.usb-usb-0:4.2.1.2:1.0-video-index0
-CAM_RIGHT=/dev/v4l/by-path/platform-a80aa10000.usb-usb-0:4.2.1.3:1.0-video-index0
-LEFT_FOLLOWER_PORT=/dev/serial/by-path/platform-a80aa10000.usb-usb-0:4.2.1.4:1.0
-RIGHT_FOLLOWER_PORT=/dev/serial/by-path/platform-a80aa10000.usb-usb-0:4.2.1.1:1.0
-
-uv run lerobot-record \
-  --robot.type=bi_dk1_follower \
-  --robot.left_arm_port="${LEFT_FOLLOWER_PORT}" \
-  --robot.right_arm_port="${RIGHT_FOLLOWER_PORT}" \
-  --robot.id=my_robot_id \
-  --policy.path="${HF_USER}/${POLICY}" \
-  --dataset.repo_id="${HF_USER}/${DATASET_NAME}" \
-  --dataset.single_task="Take a PCB from the box and place it in the testbed" \
-  --dataset.num_episodes=10 \
-  --robot.cameras='{top: {type: opencv, index_or_path: "'$CAM_TOP'", width: '$CAM_WIDTH', height: '$CAM_HEIGHT', fps: '$CAM_FPS', backend: 200, fourcc: MJPG}, left_wrist: {type: opencv, index_or_path: "'$CAM_LEFT'", width: '$CAM_WIDTH', height: '$CAM_HEIGHT', fps: '$CAM_FPS', backend: 200, fourcc: MJPG}, right_wrist: {type: opencv, index_or_path: "'$CAM_RIGHT'", width: '$CAM_WIDTH', height: '$CAM_HEIGHT', fps: '$CAM_FPS', backend: 200, fourcc: MJPG}}' \
-  --dataset.episode_time_s=25 \
-  --dataset.reset_time_s=0 \
-  --dataset.streaming_encoding=true \
-  --dataset.encoder_threads=1 \
-  --dataset.push_to_hub=false \
-  --dataset.vcodec=auto \
-  --play_sounds=false \
-  --display_data=false \
-  --robot.joint_velocity_scaling=0.5
 ```
 
 ### pi0.5 (pi05)
@@ -260,17 +295,12 @@ The guidelines provided by PI is between 1 to 20 hours of finetuning data for ta
 ```bash
 # One-time setup (if needed)
 # pip install -e ".[pi]"
-# hf auth login
-# hf auth whoami
-#
 # IMPORTANT: request and approve access to gated model:
 # https://huggingface.co/google/paligemma-3b-pt-224
-# (same HF account used by hf auth login)
 
 HF_USER=dopaul
 DATASET=pcb_placement_v1
 JOB_NAME=pcb_placement_v1_pi05
-POLICY_REPO=${HF_USER}/pcb_placement_v1_pi05_policy
 
 # Required for default QUANTILES normalization (q01/q99)
 python src/lerobot/datasets/v30/augment_dataset_quantile_stats.py \
@@ -282,7 +312,6 @@ lerobot-train \
   --policy.pretrained_path=lerobot/pi05_base \
   --output_dir=outputs/train/${JOB_NAME} \
   --job_name=${JOB_NAME} \
-  --policy.repo_id=${POLICY_REPO} \
   --policy.compile_model=true \
   --policy.gradient_checkpointing=true \
   --policy.dtype=bfloat16 \
@@ -292,29 +321,4 @@ lerobot-train \
   --save_checkpoint=true \
   --save_freq=500 \
   --wandb.enable=true
-
-# Upload selected checkpoints to separate model repos.
-BASE_REPO=pcb_placement_v1_pi05
-for CKPT in 000500 001000 001500 002000 002500 003000; do
-  huggingface-cli upload ${HF_USER}/${BASE_REPO}-${CKPT} \
-    outputs/train/${JOB_NAME}/checkpoints/${CKPT}/pretrained_model \
-    . \
-    --repo-type model
-done
-```
-
-### pi0.5 Inference / Eval (real robot)
-
-```bash
-HF_USER=dopaul
-POLICY_REPO=${HF_USER}/pcb_placement_v1_pi05_policy
-
-lerobot-record \
-  --robot.type=your_robot_type \
-  --robot.port=/dev/ttyACM1 \
-  --robot.id=my_robot_id \
-  --policy.path=${POLICY_REPO} \
-  --dataset.repo_id=${HF_USER}/pcb_placement_v1_pi05_eval \
-  --dataset.single_task="pcb placement" \
-  --dataset.num_episodes=10
 ```

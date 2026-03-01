@@ -1,0 +1,17 @@
+{
+    "dataset": {
+        "repo_id": "dopaul/pcb_placement_100x_1st_item"
+    },
+    "policy": {
+        "type": "diffusion",
+        "device": "cuda",
+        "use_amp": true
+    },
+    "batch_size": 64,
+    "num_workers": 0,
+    "steps": 5000,
+    "save_checkpoint": true,
+    "save_freq": 1000,
+    "log_freq": 100,
+    "wandb": { "enable": true }
+}

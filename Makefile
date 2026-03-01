@@ -13,7 +13,8 @@
 # limitations under the License.
 
 .PHONY: tests teleop-arms record-arms biteleop biterecord birest snapshot \
-       list-jobs list-checkpoints upload-latest
+       list-jobs list-checkpoints upload-latest \
+       list-configs train train-cmd eval
 
 PYTHON_PATH := $(shell which python)
 
@@ -359,3 +360,94 @@ upload-latest:
 	echo "  HF repo:    $(HF_USER)/$$repo_name"; \
 	echo ""; \
 	hf upload $(HF_USER)/$$repo_name "$$model_path" . --repo-type model
+
+# ── Training config management ────────────────────────────────────────────────
+CONFIGS_DIR ?= configs
+OVERRIDES   ?=
+
+# List available training configs.
+#   make list-configs
+list-configs:
+	@printf "%-25s %-12s %s\n" "CONFIG" "POLICY" "DATASET"; \
+	printf "%-25s %-12s %s\n" "------" "------" "-------"; \
+	for f in $(CONFIGS_DIR)/*.json; do \
+		name=$$(basename "$$f" .json); \
+		policy=$$($(PYTHON_PATH) -c "import json; print(json.load(open('$$f')).get('policy',{}).get('type','?'))"); \
+		dataset=$$($(PYTHON_PATH) -c "import json; print(json.load(open('$$f')).get('dataset',{}).get('repo_id','?'))"); \
+		printf "%-25s %-12s %s\n" "$$name" "$$policy" "$$dataset"; \
+	done
+
+# Print the full training command (for pasting into Lightning AI job UI).
+#   make train-cmd CONFIG=pcb100x_act
+#   make train-cmd CONFIG=pcb100x_act OVERRIDES="--steps=50000 --batch_size=32"
+train-cmd:
+	@if [ -z "$(CONFIG)" ]; then echo "ERROR: set CONFIG=<name>  (run 'make list-configs')"; exit 1; fi
+	@if [ ! -f "$(CONFIGS_DIR)/$(CONFIG).json" ]; then echo "ERROR: $(CONFIGS_DIR)/$(CONFIG).json not found"; exit 1; fi
+	@echo "lerobot-train \\"
+	@echo "  --config_path=$(CONFIGS_DIR)/$(CONFIG).json \\"
+	@echo "  --output_dir=outputs/train/$(CONFIG) \\"
+	@echo "  --job_name=$(CONFIG) \\"
+	@echo "  $(OVERRIDES)"
+
+# Run training locally.
+#   make train CONFIG=pcb100x_act
+#   make train CONFIG=pcb100x_act OVERRIDES="--steps=50000 --batch_size=32"
+train:
+	@if [ -z "$(CONFIG)" ]; then echo "ERROR: set CONFIG=<name>  (run 'make list-configs')"; exit 1; fi
+	@if [ ! -f "$(CONFIGS_DIR)/$(CONFIG).json" ]; then echo "ERROR: $(CONFIGS_DIR)/$(CONFIG).json not found"; exit 1; fi
+	lerobot-train \
+		--config_path=$(CONFIGS_DIR)/$(CONFIG).json \
+		--output_dir=outputs/train/$(CONFIG) \
+		--job_name=$(CONFIG) \
+		$(OVERRIDES)
+
+# ── Quick eval on bimanual DK1 robot ─────────────────────────────────────────
+EPHEMERAL      ?= false
+EVAL_EPISODES  ?= 10
+EVAL_TIME_S    ?= 25
+EVAL_VELOCITY  ?= 0.5
+
+# Run a trained model on the real robot for quick evaluation.
+#   make eval MODEL=dopaul/pcb100x_act-010000
+#   make eval MODEL=dopaul/pcb100x_act-010000 EPHEMERAL=true
+#   make eval MODEL=dopaul/pcb100x_act-010000 EVAL_EPISODES=5 EVAL_TIME_S=20
+eval:
+	@if [ -z "$(MODEL)" ]; then echo "ERROR: set MODEL=<hf_repo_id>  (e.g. dopaul/pcb100x_act-010000)"; exit 1; fi
+	@model_short=$$(echo "$(MODEL)" | sed 's|.*/||'); \
+	eval_dataset="$(HF_USER)/eval_$${model_short}"; \
+	local_dir="$${HOME}/.cache/huggingface/lerobot/$${eval_dataset}"; \
+	echo ""; \
+	echo "  Model:       $(MODEL)"; \
+	echo "  Eval dataset: $${eval_dataset}"; \
+	echo "  Episodes:    $(EVAL_EPISODES)"; \
+	echo "  Ephemeral:   $(EPHEMERAL)"; \
+	echo ""; \
+	if [ "$(EPHEMERAL)" = "true" ] && [ -d "$$local_dir" ]; then \
+		echo "Removing previous eval dataset: $$local_dir"; \
+		rm -rf "$$local_dir"; \
+	fi; \
+	lerobot-record \
+		--robot.type=bi_dk1_follower \
+		--robot.left_arm_port="$(LEFT_FOLLOWER_PORT)" \
+		--robot.right_arm_port="$(RIGHT_FOLLOWER_PORT)" \
+		--robot.id=my_robot_id \
+		--policy.path="$(MODEL)" \
+		--dataset.repo_id="$${eval_dataset}" \
+		--dataset.single_task="$(DATASET_TASK)" \
+		--dataset.num_episodes=$(EVAL_EPISODES) \
+		--robot.cameras='{top: {type: opencv, index_or_path: "$(CAM_TOP)", width: $(CAM_WIDTH), height: $(CAM_HEIGHT), fps: $(CAM_FPS), backend: 200, fourcc: MJPG}, left_wrist: {type: opencv, index_or_path: "$(CAM_LEFT)", width: $(CAM_WIDTH), height: $(CAM_HEIGHT), fps: $(CAM_FPS), backend: 200, fourcc: MJPG}, right_wrist: {type: opencv, index_or_path: "$(CAM_RIGHT)", width: $(CAM_WIDTH), height: $(CAM_HEIGHT), fps: $(CAM_FPS), backend: 200, fourcc: MJPG}}' \
+		--dataset.episode_time_s=$(EVAL_TIME_S) \
+		--dataset.reset_time_s=0 \
+		--dataset.streaming_encoding=true \
+		--dataset.encoder_threads=1 \
+		--dataset.push_to_hub=false \
+		--dataset.vcodec=auto \
+		--play_sounds=false \
+		--display_data=false \
+		--robot.joint_velocity_scaling=$(EVAL_VELOCITY); \
+	rc=$$?; \
+	if [ "$(EPHEMERAL)" = "true" ] && [ -d "$$local_dir" ]; then \
+		echo "Cleaning up eval dataset: $$local_dir"; \
+		rm -rf "$$local_dir"; \
+	fi; \
+	exit $$rc
