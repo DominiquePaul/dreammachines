@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-.PHONY: tests teleop-arms record-arms biteleop biterecord birest snapshot cam-tuner
+.PHONY: tests teleop-arms record-arms biteleop biterecord birest snapshot \
+       list-jobs list-checkpoints upload-latest
 
 PYTHON_PATH := $(shell which python)
 
@@ -68,10 +69,6 @@ snapshot:
 		--width $(CAM_WIDTH) \
 		--height $(CAM_HEIGHT) \
 		$(SNAPSHOT_ARGS)
-
-cam-tuner:
-	python scripts/cam_tuner.py \
-		--cameras "top=$(CAM_TOP),left_wrist=$(CAM_LEFT),right_wrist=$(CAM_RIGHT)"
 
 build-user:
 	docker build -f docker/Dockerfile.user -t lerobot-user .
@@ -306,49 +303,59 @@ birecord:
 		--play_sounds=false \
 		--resume=$(resume)
 
-birecord3o:
-	lerobot-record \
-		--robot.type=bi_dk1_follower \
-		--teleop.type=bi_dk1_leader \
-		--teleop.left_arm_port=$(LEFT_LEADER_PORT) \
-		--robot.left_arm_port=$(LEFT_FOLLOWER_PORT) \
-		--teleop.right_arm_port=$(RIGHT_LEADER_PORT) \
-		--robot.right_arm_port=$(RIGHT_FOLLOWER_PORT) \
-		--robot.joint_velocity_scaling=$(JOINT_VELOCITY_SCALING) \
-		--robot.cameras='{top: {type: opencv, index_or_path: "$(CAM_TOP)", width: $(CAM_WIDTH), height: $(CAM_HEIGHT), fps: $(CAM_FPS)}}' \
-		--dataset.fps=$(FPS) \
-		--display_data=$(DISPLAY_DATA) \
-		--dataset.repo_id=$(DATASET_REPO_ID) \
-		--dataset.single_task="$(DATASET_TASK)" \
-		--dataset.num_episodes=$(DATASET_NUM_EPISODES) \
-		--dataset.episode_time_s=$(DATASET_EPISODE_TIME_S) \
-		--dataset.reset_time_s=$(DATASET_RESET_TIME_S) \
-		--dataset.push_to_hub=true \
-		--dataset.streaming_encoding=true \
-		--dataset.encoder_threads=4 \
-		--play_sounds=false
+# ── HF checkpoint upload helpers ──────────────────────────────────────────────
+JOBS_ROOT ?= /teamspace/jobs
+HF_USER   ?= dopaul
 
+# List all jobs and their latest checkpoint.
+#   make list-jobs
+list-jobs:
+	@printf "%-30s %-50s %s\n" "JOB" "TRAIN_NAME" "LATEST_CKPT"; \
+	printf "%-30s %-50s %s\n" "---" "----------" "-----------"; \
+	for job in $(JOBS_ROOT)/*/; do \
+		name=$$(basename "$$job"); \
+		ckpt_dir=$$(ls -d "$$job"artifacts/ledream/outputs/train/*/checkpoints 2>/dev/null | head -1); \
+		if [ -n "$$ckpt_dir" ]; then \
+			latest=$$(ls "$$ckpt_dir" 2>/dev/null | grep -v last | sort -n | tail -1); \
+			train_name=$$(basename "$$(dirname "$$ckpt_dir")"); \
+			printf "%-30s %-50s %s\n" "$$name" "$$train_name" "$$latest"; \
+		else \
+			printf "%-30s %-50s %s\n" "$$name" "(no checkpoints)" "-"; \
+		fi; \
+	done
 
+# List checkpoints for a specific job.
+#   make list-checkpoints JOB=100x-pcb-act-b16
+list-checkpoints:
+	@if [ -z "$(JOB)" ]; then echo "ERROR: set JOB=<job-name>  (run 'make list-jobs' to see options)"; exit 1; fi
+	@ckpt_dir=$$(ls -d $(JOBS_ROOT)/$(JOB)/artifacts/ledream/outputs/train/*/checkpoints 2>/dev/null | head -1); \
+	if [ -z "$$ckpt_dir" ]; then echo "No checkpoints found for JOB=$(JOB)"; exit 1; fi; \
+	echo "Checkpoints for $(JOB) ($$ckpt_dir):"; \
+	ls "$$ckpt_dir"
 
-
-birecord2o:
-	lerobot-record \
-		--robot.type=bi_dk1_follower \
-		--teleop.type=bi_dk1_leader \
-		--teleop.left_arm_port=$(LEFT_LEADER_PORT) \
-		--robot.left_arm_port=$(LEFT_FOLLOWER_PORT) \
-		--teleop.right_arm_port=$(RIGHT_LEADER_PORT) \
-		--robot.right_arm_port=$(RIGHT_FOLLOWER_PORT) \
-		--robot.joint_velocity_scaling=$(JOINT_VELOCITY_SCALING) \
-		--robot.cameras='{right_wrist: {type: opencv, index_or_path: "$(CAM_RIGHT)", width: $(CAM_WIDTH), height: $(CAM_HEIGHT), fps: $(CAM_FPS), backend: 200, fourcc: MJPG}}' \
-		--dataset.fps=$(FPS) \
-		--display_data=$(DISPLAY_DATA) \
-		--dataset.repo_id=$(DATASET_REPO_ID) \
-		--dataset.single_task="$(DATASET_TASK)" \
-		--dataset.num_episodes=$(DATASET_NUM_EPISODES) \
-		--dataset.episode_time_s=$(DATASET_EPISODE_TIME_S) \
-		--dataset.reset_time_s=$(DATASET_RESET_TIME_S) \
-		--dataset.push_to_hub=true \
-		--dataset.streaming_encoding=true \
-		--dataset.encoder_threads=2 \
-		--play_sounds=false
+# Upload the latest (or a specific) checkpoint to Hugging Face.
+#   make upload-latest JOB=100x-pcb-act-b16                   # latest ckpt, auto repo name
+#   make upload-latest JOB=100x-pcb-act-b16 CKPT=004000       # specific ckpt
+#   make upload-latest JOB=100x-pcb-act-b16 REPO=my_custom_repo  # custom repo name
+upload-latest:
+	@if [ -z "$(JOB)" ]; then echo "ERROR: set JOB=<job-name>  (run 'make list-jobs' to see options)"; exit 1; fi
+	@ckpt_dir=$$(ls -d $(JOBS_ROOT)/$(JOB)/artifacts/ledream/outputs/train/*/checkpoints 2>/dev/null | head -1); \
+	if [ -z "$$ckpt_dir" ]; then echo "No checkpoints found for JOB=$(JOB)"; exit 1; fi; \
+	train_name=$$(basename "$$(dirname "$$ckpt_dir")"); \
+	if [ -n "$(CKPT)" ]; then \
+		ckpt="$(CKPT)"; \
+	else \
+		ckpt=$$(ls "$$ckpt_dir" | grep -v last | sort -n | tail -1); \
+	fi; \
+	model_path="$$ckpt_dir/$$ckpt/pretrained_model"; \
+	if [ ! -d "$$model_path" ]; then echo "ERROR: $$model_path does not exist"; exit 1; fi; \
+	repo_name="$${train_name}-$${ckpt}"; \
+	if [ -n "$(REPO)" ]; then repo_name="$(REPO)"; fi; \
+	echo ""; \
+	echo "  Job:        $(JOB)"; \
+	echo "  Train:      $$train_name"; \
+	echo "  Checkpoint:  $$ckpt"; \
+	echo "  Model path:  $$model_path"; \
+	echo "  HF repo:    $(HF_USER)/$$repo_name"; \
+	echo ""; \
+	hf upload $(HF_USER)/$$repo_name "$$model_path" . --repo-type model
