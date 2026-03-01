@@ -38,13 +38,10 @@ All `make` commands should be run from the `ledream/` directory.
 |---------|-------------|
 | `make biteleop` | Bimanual teleoperation (DK1 leader/follower) |
 | `make birecord` | Bimanual recording with 3 cameras |
-| `make birecord3o` | Bimanual recording with top camera only (push to hub) |
-| `make birecord2o` | Bimanual recording with right wrist camera only (push to hub) |
 | `make birest` | Move arms to rest pose |
 | `make teleop-arms` | SO-100 arm teleoperation |
 | `make record-arms` | SO-100 arm recording |
 | `make snapshot` | Capture a snapshot from all cameras |
-| `make cam-tuner` | Launch the camera tuner GUI |
 
 Override defaults with variables, e.g.:
 
