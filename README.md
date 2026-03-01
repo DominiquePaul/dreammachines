@@ -1,159 +1,272 @@
-<p align="center">
-  <img alt="LeRobot, Hugging Face Robotics Library" src="./media/readme/lerobot-logo-thumbnail.png" width="100%">
-</p>
+# LeDream - PCB Placement Training & Deployment
 
-<div align="center">
+> Fork of [LeRobot](https://github.com/huggingface/lerobot) for PCB placement task training and evaluation. See [lerobot_readme.md](lerobot_readme.md) for the original LeRobot documentation.
 
-[![Tests](https://github.com/huggingface/lerobot/actions/workflows/nightly.yml/badge.svg?branch=main)](https://github.com/huggingface/lerobot/actions/workflows/nightly.yml?query=branch%3Amain)
-[![Python versions](https://img.shields.io/pypi/pyversions/lerobot)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/huggingface/lerobot/blob/main/LICENSE)
-[![Status](https://img.shields.io/pypi/status/lerobot)](https://pypi.org/project/lerobot/)
-[![Version](https://img.shields.io/pypi/v/lerobot)](https://pypi.org/project/lerobot/)
-[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-v2.1-ff69b4.svg)](https://github.com/huggingface/lerobot/blob/main/CODE_OF_CONDUCT.md)
-[![Discord](https://img.shields.io/badge/Discord-Join_Us-5865F2?style=flat&logo=discord&logoColor=white)](https://discord.gg/q8Dzzpym3f)
-
-</div>
-
-**LeRobot** aims to provide models, datasets, and tools for real-world robotics in PyTorch. The goal is to lower the barrier to entry so that everyone can contribute to and benefit from shared datasets and pretrained models.
-
-🤗 A hardware-agnostic, Python-native interface that standardizes control across diverse platforms, from low-cost arms (SO-100) to humanoids.
-
-🤗 A standardized, scalable LeRobotDataset format (Parquet + MP4 or images) hosted on the Hugging Face Hub, enabling efficient storage, streaming and visualization of massive robotic datasets.
-
-🤗 State-of-the-art policies that have been shown to transfer to the real-world ready for training and deployment.
-
-🤗 Comprehensive support for the open-source ecosystem to democratize physical AI.
-
-## Quick Start
-
-LeRobot can be installed directly from PyPI.
+## Prerequisites
 
 ```bash
-pip install lerobot
-lerobot-info
+hf auth login
 ```
 
-> [!IMPORTANT]
-> For detailed installation guide, please see the [Installation Documentation](https://huggingface.co/docs/lerobot/installation).
+## Hugging Face Data & Model Management
 
-## Robots & Control
-
-<div align="center">
-  <img src="./media/readme/robots_control_video.webp" width="640px" alt="Reachy 2 Demo">
-</div>
-
-LeRobot provides a unified `Robot` class interface that decouples control logic from hardware specifics. It supports a wide range of robots and teleoperation devices.
-
-```python
-from lerobot.robots.myrobot import MyRobot
-
-# Connect to a robot
-robot = MyRobot(config=...)
-robot.connect()
-
-# Read observation and send action
-obs = robot.get_observation()
-action = model.select_action(obs)
-robot.send_action(action)
-```
-
-**Supported Hardware:** SO100, LeKiwi, Koch, HopeJR, OMX, EarthRover, Reachy2, Gamepads, Keyboards, Phones, OpenARM, Unitree G1.
-
-While these devices are natively integrated into the LeRobot codebase, the library is designed to be extensible. You can easily implement the Robot interface to utilize LeRobot's data collection, training, and visualization tools for your own custom robot.
-
-For detailed hardware setup guides, see the [Hardware Documentation](https://huggingface.co/docs/lerobot/integrate_hardware).
-
-## LeRobot Dataset
-
-To solve the data fragmentation problem in robotics, we utilize the **LeRobotDataset** format.
-
-- **Structure:** Synchronized MP4 videos (or images) for vision and Parquet files for state/action data.
-- **HF Hub Integration:** Explore thousands of robotics datasets on the [Hugging Face Hub](https://huggingface.co/lerobot).
-- **Tools:** Seamlessly delete episodes, split by indices/fractions, add/remove features, and merge multiple datasets.
-
-```python
-from lerobot.datasets.lerobot_dataset import LeRobotDataset
-
-# Load a dataset from the Hub
-dataset = LeRobotDataset("lerobot/aloha_mobile_cabinet")
-
-# Access data (automatically handles video decoding)
-episode_index=0
-print(f"{dataset[episode_index]['action'].shape=}\n")
-```
-
-Learn more about it in the [LeRobotDataset Documentation](https://huggingface.co/docs/lerobot/lerobot-dataset-v3)
-
-## SoTA Models
-
-LeRobot implements state-of-the-art policies in pure PyTorch, covering Imitation Learning, Reinforcement Learning, and Vision-Language-Action (VLA) models, with more coming soon. It also provides you with the tools to instrument and inspect your training process.
-
-<p align="center">
-  <img alt="Gr00t Architecture" src="./media/readme/VLA_architecture.jpg" width="640px">
-</p>
-
-Training a policy is as simple as running a script configuration:
+Upload a dataset:
 
 ```bash
+hf upload dopaul/pcb_placement_100x_1st_item /home/dominique/.cache/huggingface/lerobot/dopaul/pcb_placement_100x_1st_item . --repo-type dataset
+```
+
+Download a dataset:
+
+```bash
+hf download dopaul/DATASET_NAME --repo-type dataset --local-dir /home/dominique/.cache/huggingface/lerobot/dopaul/DATASET_NAME
+```
+
+Upload a model:
+
+```bash
+hf upload dopaul/pcb_placement_v1_act_001000 /teamspace/jobs/act-50-pcb-placing-samples/artifacts/ledream/outputs/train/pcb_placement_v1_act_baseline/checkpoints/001000/pretrained_model
+```
+
+## Makefile Quick Reference
+
+All `make` commands should be run from the `ledream/` directory.
+
+### Robot & Recording
+
+| Command | Description |
+|---------|-------------|
+| `make biteleop` | Bimanual teleoperation (DK1 leader/follower) |
+| `make birecord` | Bimanual recording with 3 cameras |
+| `make birecord3o` | Bimanual recording with top camera only (push to hub) |
+| `make birecord2o` | Bimanual recording with right wrist camera only (push to hub) |
+| `make birest` | Move arms to rest pose |
+| `make teleop-arms` | SO-100 arm teleoperation |
+| `make record-arms` | SO-100 arm recording |
+| `make snapshot` | Capture a snapshot from all cameras |
+| `make cam-tuner` | Launch the camera tuner GUI |
+
+Override defaults with variables, e.g.:
+
+```bash
+make birecord DATASET_REPO_ID=dopaul/my_dataset DATASET_NUM_EPISODES=50
+```
+
+### Job & Checkpoint Management
+
+List all training jobs and their latest checkpoint:
+
+```bash
+make list-jobs
+```
+
+```
+JOB                            TRAIN_NAME                                         LATEST_CKPT
+---                            ----------                                         -----------
+100x-pcb-act-b16               pcb_placement_1st_item_act_48acl                   010000
+100x-pcb-dp-0zxpw              pcb_placement_100x_1st_item_diffusion              002000
+pi-pcb                         (no checkpoints)                                   -
+```
+
+List all checkpoints for a specific job:
+
+```bash
+make list-checkpoints JOB=100x-pcb-act-b16
+```
+
+Upload the latest checkpoint from a job to Hugging Face:
+
+```bash
+make upload-latest JOB=100x-pcb-act-b16
+```
+
+Upload a specific checkpoint:
+
+```bash
+make upload-latest JOB=100x-pcb-act-b16 CKPT=004000
+```
+
+Upload with a custom HF repo name:
+
+```bash
+make upload-latest JOB=100x-pcb-act-b16 REPO=my_custom_model_name
+```
+
+The default HF user is `dopaul`. Override with `HF_USER=someone_else`.
+
+## Training Models
+
+### ACT
+
+```bash
+HF_USER=dopaul
+DATASET=pcb_placement_100x_1st_item
+JOB_NAME=pcb_placement_1st_item_act_48acl
+BASE_REPO=pcb_placement_1st_item_act_48acl
+
 lerobot-train \
-  --policy=act \
-  --dataset.repo_id=lerobot/aloha_mobile_cabinet
+  --dataset.repo_id=${HF_USER}/${DATASET} \
+  --policy.type=act \
+  --output_dir=outputs/train/${JOB_NAME} \
+  --job_name=${JOB_NAME} \
+  --policy.device=cuda \
+  --policy.use_amp=true \
+  --policy.chunk_size=48 \
+  --policy.n_action_steps=30 \
+  --policy.use_vae=true \
+  --policy.kl_weight=10 \
+  --batch_size=16 \
+  --policy.optimizer_lr=3e-5 \
+  --policy.optimizer_lr_backbone=3e-5 \
+  --steps=10000 \
+  --log_freq=100 \
+  --save_checkpoint=true \
+  --save_freq=2000 \
+  --wandb.enable=true \
+  --policy.push_to_hub=true \
+  --policy.repo_id=${HF_USER}/act_policy
+
+# Upload selected checkpoints to separate model repos.
+for CKPT in 002000 004000 006000 008000 010000; do
+  hf upload ${HF_USER}/${BASE_REPO}-${CKPT} \
+    outputs/train/${JOB_NAME}/checkpoints/${CKPT}/pretrained_model \
+    . \
+    --repo-type model
+done
 ```
 
-| Category                   | Models                                                                                                                                                                                                       |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Imitation Learning**     | [ACT](./docs/source/policy_act_README.md), [Diffusion](./docs/source/policy_diffusion_README.md), [VQ-BeT](./docs/source/policy_vqbet_README.md)                                                             |
-| **Reinforcement Learning** | [HIL-SERL](./docs/source/hilserl.mdx), [TDMPC](./docs/source/policy_tdmpc_README.md) & QC-FQL (coming soon)                                                                                                  |
-| **VLAs Models**            | [Pi0Fast](./docs/source/pi0fast.mdx), [Pi0.5](./docs/source/pi05.mdx), [GR00T N1.5](./docs/source/policy_groot_README.md), [SmolVLA](./docs/source/policy_smolvla_README.md), [XVLA](./docs/source/xvla.mdx) |
-
-Similarly to the hardware, you can easily implement your own policy & leverage LeRobot's data collection, training, and visualization tools, and share your model to the HF Hub
-
-For detailed policy setup guides, see the [Policy Documentation](https://huggingface.co/docs/lerobot/bring_your_own_policies).
-
-## Inference & Evaluation
-
-Evaluate your policies in simulation or on real hardware using the unified evaluation script. LeRobot supports standard benchmarks like **LIBERO**, **MetaWorld** and more to come.
+### ACT Inference / Eval (real robot)
 
 ```bash
-# Evaluate a policy on the LIBERO benchmark
-lerobot-eval \
-  --policy.path=lerobot/pi0_libero_finetuned \
-  --env.type=libero \
-  --env.task=libero_object \
-  --eval.n_episodes=10
+POLICY=pcb_placement_1st_item_act_48acl_10000
+DATASET_NAME=eval_{$POLICY}
+HF_USER=dopaul
+CAM_WIDTH=640
+CAM_HEIGHT=480
+CAM_FPS=30
+CAM_TOP=/dev/v4l/by-path/platform-a80aa10000.usb-usb-0:3.1:1.0-video-index0
+CAM_LEFT=/dev/v4l/by-path/platform-a80aa10000.usb-usb-0:4.2.1.2:1.0-video-index0
+CAM_RIGHT=/dev/v4l/by-path/platform-a80aa10000.usb-usb-0:4.2.1.3:1.0-video-index0
+LEFT_FOLLOWER_PORT=/dev/serial/by-path/platform-a80aa10000.usb-usb-0:4.2.1.4:1.0
+RIGHT_FOLLOWER_PORT=/dev/serial/by-path/platform-a80aa10000.usb-usb-0:4.2.1.1:1.0
+
+uv run lerobot-record \
+  --robot.type=bi_dk1_follower \
+  --robot.left_arm_port=${LEFT_FOLLOWER_PORT} \
+  --robot.right_arm_port=${RIGHT_FOLLOWER_PORT} \
+  --robot.id=my_robot_id \
+  --policy.path=${HF_USER}/{$POLICY} \
+  --dataset.repo_id=${HF_USER}/{$DATASET_NAME} \
+  --dataset.single_task="Take a PCB from the box and place it in the testbed" \
+  --dataset.num_episodes=10 \
+  --robot.cameras='{top: {type: opencv, index_or_path: "'$CAM_TOP'", width: '$CAM_WIDTH', height: '$CAM_HEIGHT', fps: '$CAM_FPS', backend: 200, fourcc: MJPG}, left_wrist: {type: opencv, index_or_path: "'$CAM_LEFT'", width: '$CAM_WIDTH', height: '$CAM_HEIGHT', fps: '$CAM_FPS', backend: 200, fourcc: MJPG}, right_wrist: {type: opencv, index_or_path: "'$CAM_RIGHT'", width: '$CAM_WIDTH', height: '$CAM_HEIGHT', fps: '$CAM_FPS', backend: 200, fourcc: MJPG}}' \
+  --dataset.episode_time_s=25 \
+  --dataset.reset_time_s=0 \
+  --dataset.streaming_encoding=true \
+  --dataset.encoder_threads=1 \
+  --dataset.push_to_hub=false \
+  --dataset.vcodec=auto \
+  --play_sounds=false \
+  --display_data=false \
+  --robot.joint_velocity_scaling=0.5
 ```
 
-Learn how to implement your own simulation environment or benchmark and distribute it from the HF Hub by following the [EnvHub Documentation](https://huggingface.co/docs/lerobot/envhub)
+### Diffusion Policy (DP)
 
-## Resources
+```bash
+HF_USER=dopaul
+DATASET=pcb_placement_100x_1st_item
+POLICY_REPO=${HF_USER}/pcb_placement_v1_diffusion_policy
+JOB_NAME=pcb_placement_100x_1st_item_diffusion
+BASE_REPO=pcb_placement_100x_1st_item_diffusion
 
-- **[Documentation](https://huggingface.co/docs/lerobot/index):** The complete guide to tutorials & API.
-- **[Chinese Tutorials: LeRobot+SO-ARM101中文教程-同济子豪兄](https://zihao-ai.feishu.cn/wiki/space/7589642043471924447)** Detailed doc for assembling, teleoperate, dataset, train, deploy. Verified by Seed Studio and 5 global hackathon players.
-- **[Discord](https://discord.gg/q8Dzzpym3f):** Join the `LeRobot` server to discuss with the community.
-- **[X](https://x.com/LeRobotHF):** Follow us on X to stay up-to-date with the latest developments.
-- **[Robot Learning Tutorial](https://huggingface.co/spaces/lerobot/robot-learning-tutorial):** A free, hands-on course to learn robot learning using LeRobot.
+lerobot-train \
+  --dataset.repo_id=dopaul/pcb_placement_100x_1st_item \
+  --policy.type=diffusion \
+  --output_dir=outputs/train/pcb_placement_100x_1st_item_diffusion \
+  --job_name=pcb_placement_100x_1st_item_diffusion \
+  --policy.repo_id=dopaul/pcb_placement_v1_diffusion_policy \
+  --policy.device=cuda \
+  --policy.use_amp=true \
+  --batch_size=64 \
+  --num_workers=0 \
+  --steps=5000 \
+  --log_freq=100 \
+  --save_checkpoint=true \
+  --save_freq=1000 \
+  --wandb.enable=true
 
-## Citation
-
-If you use LeRobot in your research, please cite:
-
-```bibtex
-@misc{cadene2024lerobot,
-    author = {Cadene, Remi and Alibert, Simon and Soare, Alexander and Gallouedec, Quentin and Zouitine, Adil and Palma, Steven and Kooijmans, Pepijn and Aractingi, Michel and Shukor, Mustafa and Aubakirova, Dana and Russi, Martino and Capuano, Francesco and Pascal, Caroline and Choghari, Jade and Moss, Jess and Wolf, Thomas},
-    title = {LeRobot: State-of-the-art Machine Learning for Real-World Robotics in Pytorch},
-    howpublished = "\url{https://github.com/huggingface/lerobot}",
-    year = {2024}
-}
+# Upload selected checkpoints to separate model repos.
+for CKPT in 001000 002000 003000 004000 005000; do
+  hf upload ${HF_USER}/${BASE_REPO}-${CKPT} \
+    outputs/train/${JOB_NAME}/checkpoints/${CKPT}/pretrained_model \
+    . \
+    --repo-type model
+done
 ```
 
-## Contribute
+### pi0.5 (pi05)
 
-We welcome contributions from everyone in the community! To get started, please read our [CONTRIBUTING.md](./CONTRIBUTING.md) guide. Whether you're adding a new feature, improving documentation, or fixing a bug, your help and feedback are invaluable. We're incredibly excited about the future of open-source robotics and can't wait to work with you on what's next—thank you for your support!
+The guidelines provided by PI is between 1 to 20 hours of finetuning data for task adaptation.
 
-<p align="center">
-  <img alt="SO101 Video" src="./media/readme/so100_video.webp" width="640px">
-</p>
+```bash
+# One-time setup (if needed)
+# pip install -e ".[pi]"
+# hf auth login
+# hf auth whoami
+#
+# IMPORTANT: request and approve access to gated model:
+# https://huggingface.co/google/paligemma-3b-pt-224
+# (same HF account used by hf auth login)
 
-<div align="center">
-<sub>Built by the <a href="https://huggingface.co/lerobot">LeRobot</a> team at <a href="https://huggingface.co">Hugging Face</a> with ❤️</sub>
-</div>
+HF_USER=dopaul
+DATASET=pcb_placement_v1
+JOB_NAME=pcb_placement_v1_pi05
+POLICY_REPO=${HF_USER}/pcb_placement_v1_pi05_policy
+
+# Required for default QUANTILES normalization (q01/q99)
+python src/lerobot/datasets/v30/augment_dataset_quantile_stats.py \
+  --repo-id=${HF_USER}/${DATASET}
+
+lerobot-train \
+  --dataset.repo_id=${HF_USER}/${DATASET} \
+  --policy.type=pi05 \
+  --policy.pretrained_path=lerobot/pi05_base \
+  --output_dir=outputs/train/${JOB_NAME} \
+  --job_name=${JOB_NAME} \
+  --policy.repo_id=${POLICY_REPO} \
+  --policy.compile_model=true \
+  --policy.gradient_checkpointing=true \
+  --policy.dtype=bfloat16 \
+  --policy.device=cuda \
+  --batch_size=32 \
+  --steps=3000 \
+  --save_checkpoint=true \
+  --save_freq=500 \
+  --wandb.enable=true
+
+# Upload selected checkpoints to separate model repos.
+BASE_REPO=pcb_placement_v1_pi05
+for CKPT in 000500 001000 001500 002000 002500 003000; do
+  huggingface-cli upload ${HF_USER}/${BASE_REPO}-${CKPT} \
+    outputs/train/${JOB_NAME}/checkpoints/${CKPT}/pretrained_model \
+    . \
+    --repo-type model
+done
+```
+
+### pi0.5 Inference / Eval (real robot)
+
+```bash
+HF_USER=dopaul
+POLICY_REPO=${HF_USER}/pcb_placement_v1_pi05_policy
+
+lerobot-record \
+  --robot.type=your_robot_type \
+  --robot.port=/dev/ttyACM1 \
+  --robot.id=my_robot_id \
+  --policy.path=${POLICY_REPO} \
+  --dataset.repo_id=${HF_USER}/pcb_placement_v1_pi05_eval \
+  --dataset.single_task="pcb placement" \
+  --dataset.num_episodes=10
+```
