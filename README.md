@@ -2,6 +2,21 @@
 
 > Fork of [LeRobot](https://github.com/huggingface/lerobot) for PCB placement task training and evaluation. See [lerobot_readme.md](lerobot_readme.md) for the original LeRobot documentation.
 
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Hugging Face Data & Model Management](#hugging-face-data--model-management)
+- [Makefile Quick Reference](#makefile-quick-reference)
+  - [Robot & Recording](#robot--recording)
+  - [Job & Checkpoint Management](#job--checkpoint-management)
+- [Training Models](#training-models)
+  - [ACT](#act)
+  - [ACT Inference / Eval (real robot)](#act-inference--eval-real-robot)
+  - [Diffusion Policy (DP)](#diffusion-policy-dp)
+  - [Diffusion Policy Inference / Eval (real robot)](#diffusion-policy-inference--eval-real-robot)
+  - [pi0.5 (pi05)](#pi05-pi05)
+  - [pi0.5 Inference / Eval (real robot)](#pi05-inference--eval-real-robot)
+
 ## Prerequisites
 
 ```bash
