@@ -1,0 +1,22 @@
+---
+description: Guidelines for modifying upstream lerobot source files
+globs: src/lerobot/**/*.py
+alwaysApply: false
+---
+
+# Upstream-Aware Source Editing
+
+This repo is a fork of huggingface/lerobot. Files under `src/lerobot/` come from upstream and are periodically synced via `git merge upstream/main`. Edit them freely when it's the right approach -- just be aware that changes here may need conflict resolution during upstream merges.
+
+## Currently modified upstream files
+
+- `src/lerobot/scripts/lerobot_record.py` -- progress bar, action debug logging, headless fixes
+- `src/lerobot/utils/control_utils.py` -- stdin-based headless keyboard controls
+
+See `ledream_changelog.md` section "Modified Upstream Files" for details.
+
+## Guidelines
+
+- Mark custom code blocks with `# DP:` comments so they're easy to find during merge conflict resolution
+- Update `ledream_changelog.md` when modifying upstream files
+- When adding substantial new functionality, consider whether a separate file (under `scripts/`, `configs/`, etc.) would work -- additive files never cause merge conflicts

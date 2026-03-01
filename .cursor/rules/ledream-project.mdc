@@ -1,0 +1,41 @@
+---
+description: LeDream fork context, naming conventions, and Makefile workflow
+alwaysApply: true
+---
+
+# LeDream Project Context
+
+This is a fork of [huggingface/lerobot](https://github.com/huggingface/lerobot) for PCB placement robotics. The upstream remote is `upstream`.
+
+Read `ledream_changelog.md` for full details on what files are custom vs modified from upstream.
+
+## Key files
+
+- `ledream_changelog.md` -- documents all fork changes and upstream sync instructions
+- `configs/*.json` -- training configs (draccus/JSON format for `lerobot-train --config_path`)
+- `Makefile` -- primary workflow interface (training, eval, recording, checkpoint management)
+
+## Naming convention
+
+HF model repos: `{dataset}_{policy}[-{variant}]-{checkpoint}`
+- dataset: short alias (e.g. `pcb100x`, `pcb_v1`)
+- policy: `act`, `dp`, `pi05`
+- variant: optional (e.g. `novae`, `b32`)
+- checkpoint: zero-padded step (e.g. `010000`)
+
+Config filenames match the base name (without checkpoint), e.g. `configs/pcb100x_act.json`.
+
+## Makefile workflow
+
+- `make train CONFIG=... [OVERRIDES="..."]` -- run training locally
+- `make train-cmd CONFIG=...` -- print command for Lightning AI job UI
+- `make eval MODEL=dopaul/... [EPHEMERAL=true]` -- quick real-robot eval
+- `make upload-latest JOB=...` -- upload checkpoint to HF
+- `make list-jobs` / `make list-configs` / `make list-checkpoints JOB=...`
+
+## When making changes
+
+- Update `ledream_changelog.md` when adding, removing, or modifying files (especially upstream source)
+- New training experiments should get a config file in `configs/`
+- Use `hf` (not `huggingface-cli`) for HF CLI commands
+- HF user is `dopaul`
