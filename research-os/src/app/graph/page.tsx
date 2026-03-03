@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   ReactFlow,
   Background,
@@ -24,12 +25,12 @@ const NODE_COLORS: Record<string, string> = {
 
 export default function GraphPage() {
   const { data } = useData();
+  const router = useRouter();
 
   const { initialNodes, initialEdges } = useMemo(() => {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
 
-    // Layout: hypotheses on the left, experiments in the middle, datasets/models on the right
     let hypY = 0;
 
     for (const h of data.hypotheses) {
@@ -45,6 +46,7 @@ export default function GraphPage() {
           padding: "8px 12px",
           fontSize: 11,
           maxWidth: 250,
+          cursor: "pointer",
         },
       });
 
@@ -66,6 +68,7 @@ export default function GraphPage() {
             padding: "8px 12px",
             fontSize: 11,
             maxWidth: 200,
+            cursor: "pointer",
           },
         });
 
@@ -77,7 +80,6 @@ export default function GraphPage() {
           style: { stroke: "#F59E0B44" },
         });
 
-        // Link to datasets
         let dsY = expY;
         for (const did of exp.datasetIds) {
           const nodeId = `d-${did}`;
@@ -96,6 +98,7 @@ export default function GraphPage() {
                   padding: "8px 12px",
                   fontSize: 11,
                   maxWidth: 180,
+                  cursor: "pointer",
                 },
               });
               dsY += 70;
@@ -110,7 +113,6 @@ export default function GraphPage() {
           });
         }
 
-        // Link to models
         let mdY = dsY;
         for (const mid of exp.modelIds) {
           const nodeId = `m-${mid}`;
@@ -129,6 +131,7 @@ export default function GraphPage() {
                   padding: "8px 12px",
                   fontSize: 11,
                   maxWidth: 180,
+                  cursor: "pointer",
                 },
               });
               mdY += 70;
@@ -155,12 +158,23 @@ export default function GraphPage() {
   const [nodes, , onNodesChange] = useNodesState(initialNodes);
   const [edges, , onEdgesChange] = useEdgesState(initialEdges);
 
+  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    const id = node.id;
+    if (id.startsWith("h-") || id.startsWith("e-")) {
+      router.push("/experiments");
+    } else if (id.startsWith("d-")) {
+      router.push("/datasets");
+    } else if (id.startsWith("m-")) {
+      router.push("/models");
+    }
+  }, [router]);
+
   return (
     <div className="h-full flex flex-col">
       <div className="p-6 pb-0">
         <h1 className="text-2xl font-bold text-white">Relational Graph</h1>
         <p className="text-gray-400 text-sm mt-1">
-          Visual map of hypotheses, experiments, datasets, and models
+          Visual map of hypotheses, experiments, datasets, and models. Click a node to navigate.
         </p>
         <div className="flex gap-4 mt-3">
           {Object.entries(NODE_COLORS).map(([type, color]) => (
@@ -180,6 +194,7 @@ export default function GraphPage() {
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
+          onNodeClick={onNodeClick}
           fitView
           className="bg-gray-950"
           proOptions={{ hideAttribution: true }}

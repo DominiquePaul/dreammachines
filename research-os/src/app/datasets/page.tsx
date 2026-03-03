@@ -12,6 +12,7 @@ import {
   Pencil,
   Check,
   X,
+  Tag as TagIcon,
 } from "lucide-react";
 
 export default function DatasetsPage() {
@@ -21,6 +22,7 @@ export default function DatasetsPage() {
   const [filterTag, setFilterTag] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
+  const [editingTags, setEditingTags] = useState<string | null>(null);
   const [editMeta, setEditMeta] = useState({
     collectionConditions: "",
     teleoperatorInstructions: "",
@@ -59,6 +61,15 @@ export default function DatasetsPage() {
       },
     });
     setEditing(null);
+  };
+
+  const toggleTag = (datasetId: string, tagId: string) => {
+    const ds = data.datasets.find((d) => d.id === datasetId);
+    if (!ds) return;
+    const newTags = ds.tags.includes(tagId)
+      ? ds.tags.filter((t) => t !== tagId)
+      : [...ds.tags, tagId];
+    ctx.updateDataset(datasetId, { tags: newTags });
   };
 
   const handleDeleteDataset = (id: string) => {
@@ -309,6 +320,62 @@ export default function DatasetsPage() {
                       {d.metadata.notes && (
                         <MetaField label="Notes" value={d.metadata.notes} />
                       )}
+                      {/* Tag assignment */}
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-[10px] text-gray-500 uppercase">Tags</span>
+                          <button
+                            onClick={() => setEditingTags(editingTags === d.id ? null : d.id)}
+                            className="text-[10px] text-gray-500 hover:text-white flex items-center gap-1"
+                          >
+                            <TagIcon size={10} />
+                            {editingTags === d.id ? "Done" : "Edit"}
+                          </button>
+                        </div>
+                        {editingTags === d.id ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {data.tags.map((tag) => {
+                              const isActive = d.tags.includes(tag.id);
+                              return (
+                                <button
+                                  key={tag.id}
+                                  onClick={() => toggleTag(d.id, tag.id)}
+                                  className={`text-[10px] px-2 py-1 rounded-full border transition-colors ${
+                                    isActive
+                                      ? "border-transparent"
+                                      : "border-gray-700 opacity-40 hover:opacity-70"
+                                  }`}
+                                  style={{
+                                    backgroundColor: isActive ? tag.color + "33" : "transparent",
+                                    color: tag.color,
+                                  }}
+                                >
+                                  {isActive ? "\u2713 " : ""}{tag.name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {d.tags.length === 0 && (
+                              <span className="text-[10px] text-gray-600 italic">No tags</span>
+                            )}
+                            {d.tags.map((tid) => {
+                              const tag = tagMap.get(tid);
+                              return tag ? (
+                                <span
+                                  key={tid}
+                                  className="text-[10px] px-2 py-0.5 rounded-full"
+                                  style={{ backgroundColor: tag.color + "22", color: tag.color }}
+                                >
+                                  {tag.name}
+                                </span>
+                              ) : null;
+                            })}
+                          </div>
+                        )}
+                      </div>
+
                       <div className="text-[10px] text-gray-600">
                         HF ID: {d.hfId} &middot; Last modified:{" "}
                         {new Date(d.lastModified).toLocaleDateString()}
