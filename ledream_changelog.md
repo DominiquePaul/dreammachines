@@ -33,6 +33,7 @@ These files are entirely ours and will never conflict with upstream merges:
 | `ledream_changelog.md` | This file |
 | `lerobot_readme.md` | Original LeRobot README (moved from README.md) |
 | `recording_loop_lag_report_2026-02-27.md` | Investigation report on recording lag |
+| `dataloader_optimization_report.md` | Investigation report on training data loading bottleneck |
 | `trlc-dk1` | Git submodule for DK1 hardware config |
 
 ## Modified Upstream Files
