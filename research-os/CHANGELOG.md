@@ -1,5 +1,45 @@
 # Research OS - Changelog
 
+## 2026-03-03 — Improvements Round 2
+
+### Data Management
+- **Export**: Download all Research OS data as a timestamped JSON backup
+- **Import**: Restore from a JSON backup file
+- **Reset**: Clear all data and re-sync from HuggingFace (with confirmation dialog)
+
+### Dashboard
+- Added **Episodes by Tag** breakdown alongside Hours by Tag
+- Added **Experiment Status** breakdown (planned/in-progress/completed/failed)
+- Added **Checkpoints** stat card showing total model iterations
+- Stat cards are now **clickable** — navigate to relevant page
+- Active hypotheses are now **clickable** — navigate to experiments page
+- Added "View all" links to experiments and datasets pages
+
+### Experiments Page
+- **Full experiment editing**: click pencil icon to edit name, notes, results, status
+- **Dataset linking**: search and select datasets to link to experiments
+- **Model linking**: search and select models to link to experiments
+- Linked assets shown as removable pills during editing
+
+### Datasets Page
+- **Tag assignment UI**: click "Edit" next to Tags to toggle tags on/off
+- Tags shown as colored toggle buttons with checkmarks
+
+### Models Page
+- **Tag assignment UI**: same toggle interface as datasets
+- **Model description editing**: click edit to add/change model group descriptions
+- **Iteration notes editing**: pencil icon on each checkpoint to add/edit notes
+- **Config JSON editing**: enter/edit hyperparameters as JSON per iteration
+- **Show/hide config**: toggle to view config JSON for iterations that have it
+- **trainedOn display**: shows linked training datasets on iterations
+
+### Graph Page
+- **Click-to-navigate**: clicking a node navigates to the relevant page
+- Nodes now show pointer cursor to indicate interactivity
+- Updated help text: "Click a node to navigate"
+
+---
+
 ## 2026-03-03 — Initial Build
 
 ### What was built
@@ -13,19 +53,3 @@
 - Fixed `.gitignore` blocking `research-os/src/lib/` (root `lib/` pattern)
 - Refactored from server-side filesystem storage to client-side localStorage (Vercel serverless has ephemeral disk)
 - Fixed HF sync crash: Models API returns `createdAt` but not `lastModified` — added `getModelDate()` fallback
-
-### Gap analysis (features to improve)
-1. **Model config editing** — The `config` field on ModelIteration exists in types but has no UI for viewing/editing hyperparameters
-2. **Tag assignment on datasets/models** — Tags are auto-assigned during sync but can't be manually assigned/removed from detail views
-3. **Experiment inline editing** — Hypotheses are editable but experiment rows (name, notes, results, status, linked assets) are read-only
-4. **Model iteration notes** — Notes field exists but has no edit UI per iteration
-5. **trainedOn links** — ModelIteration.trainedOn is captured but not displayed in the model detail view
-6. **Dataset-model linking in experiments** — Can't interactively add/remove dataset or model links to experiments
-
-### Improvements being implemented
-- Tag assignment picker on dataset and model detail views
-- Experiment inline editing (name, notes, results, status)
-- Model iteration notes and config editing
-- trainedOn dataset links display
-- Graph node click-to-navigate
-- Reset all data button accessible from UI
