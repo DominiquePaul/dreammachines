@@ -1,39 +1,65 @@
-# Questions for Review
+# DreamHub - Open Questions
 
-These are open questions and design decisions I'd like your input on when you're back.
+Rolling log of open questions. Resolved questions are removed and decisions are captured in SPEC.md.
 
-## Data & Architecture
+---
 
-1. **Database migration timing**: The app uses localStorage which means data is per-browser and lost if you clear storage. Should we move to a Supabase/Postgres backend soon, or is localStorage fine for now? (I noticed you have Supabase MCP tools available.)
+## Supabase Migration
 
-2. **HF metadata push**: The spec mentions tags being "pushable to metadata" on HuggingFace. Should tags/notes you add in the app be pushed back to HF repo cards? This would require write access via the HF API.
+1. **Supabase setup approach**: I presented the pros/cons above. If you want to proceed, I'd set up:
+   - Supabase project with tables matching our data model (hypotheses, experiments, datasets, models, tags)
+   - Supabase Auth with email+password (simple to set up, no OAuth headaches)
+   - Row-level security so only authenticated users can read/write
+   - HF token stored as a Supabase secret (not exposed in browser)
+   - Migration path: export current localStorage data, import into Supabase
 
-3. **Multi-device sync**: Since localStorage is browser-local, data entered on one device won't appear on another. Is this a problem for your workflow, or do you mainly use one browser?
+   **Question**: Should I go ahead and set this up? It would take one session. The app would require login, which also protects the HF write operations (rename/delete).
 
-## Features & UX
+## HuggingFace Integration
 
-4. **Model config format**: How do you want to enter model hyperparameters? Options:
-   - Raw JSON editor (flexible but less friendly)
-   - Structured form with known fields (learning_rate, batch_size, epochs, etc.)
-   - Import from a config file on HuggingFace
+2. **HF metadata push — what to push?** You want tags/notes pushed back to HF repo cards. The HF API allows updating the repo's README.md (which serves as the model/dataset card). Options:
+   - Push tags as HF tags (shows up in HF filters/search)
+   - Push notes/collection-conditions/known-issues into the dataset card README
+   - Both?
 
-5. **Experiment linking flow**: When adding datasets/models to an experiment, should there be a search/select dropdown, or would you prefer a drag-and-drop from the graph view?
+   **Question**: Which metadata fields should be pushed to HF? Just tags, or also the full metadata (collection conditions, teleop instructions, known issues)?
 
-6. **Data collection log**: Would it be useful to have a "collection log" page where you can quickly log a new data collection session (robot, task, hours, notes) that auto-creates the dataset entry before it's even uploaded to HF?
+3. **HF token security**: Currently the HF token is prompted in the browser and stored in localStorage. This works but isn't ideal — anyone with browser access can see it. With Supabase, the token would be stored server-side and all HF write operations would go through a Supabase Edge Function. **This is another reason to prioritize the Supabase migration.**
 
-7. **Evaluation tracking**: The spec mentions evaluation datasets. Should there be a dedicated evaluation results view that compares model performance across datasets with charts/tables?
+## Features
 
-## Prioritization
+4. **Experiment linking flow — more context**: On the Experiments page, when you click the pencil icon to edit an experiment, you can now link datasets and models to it via a search dropdown. This is how you say "experiment X used datasets A, B and model C." These links then show up on the experiments page as colored pills and also appear in the relational graph. **Question**: Is this workflow clear enough, or would you prefer a different way to link them?
 
-8. **What matters most right now?** Given limited time, which of these would be most valuable:
-   - a) Better model iteration tracking (configs, notes, diffs)
-   - b) Better experiment workflow (linking assets, tracking progress)
-   - c) Database backend for multi-device access
-   - d) Evaluation results visualization
-   - e) Something else entirely?
+5. **Data collection log — more context**: The idea is: before you even upload a dataset to HuggingFace, you could log in DreamHub "I just collected 2 hours of rook movements on SO-100 with instructions X." This creates a placeholder entry. Later, when you upload to HF and sync, it would match up. This is useful if you want to log collection conditions immediately after recording (while fresh in memory) rather than retroactively. **Question**: Would this fit your workflow, or do you usually add metadata after uploading?
 
-## Cosmetic / Polish
+6. **Evaluation tracking — proposed workflow**: For manual robot rollout evals, I'd add:
+   - An "Evaluations" tab or section within each experiment
+   - Log individual rollouts: model version, dataset, outcome (success/partial/failure), notes, date
+   - Summary stats: success rate per model version, comparison charts
+   - Quick-log form: select model + task, tap success/partial/failure, optional notes
+   - Could also work well on mobile for logging during live rollouts
 
-9. **Branding**: "Research OS" is the working name. Want to keep it or rename?
+   **Question**: Does this match how you'd want to log evals? How many rollouts do you typically do per evaluation (5? 10? 50?)? Do you need video links?
 
-10. **Mobile**: Do you ever need to check this on your phone, or is it desktop-only?
+## Domain & Deployment
+
+7. **Custom domain setup**: You want `hub.dream-machines.eu`. To set this up:
+   - Add a CNAME record pointing `hub.dream-machines.eu` to `cname.vercel-dns.com` in your DNS provider
+   - Add the custom domain in the Vercel project settings
+   - **Question**: Do you manage DNS for dream-machines.eu yourself? Which DNS provider (Cloudflare, Namecheap, etc.)? I can do the Vercel side, but you'll need to add the DNS record.
+
+## Data Model
+
+8. **Dataset-model naming convention**: You mentioned it's hard to tell from names how datasets and models belong together. Would it help to:
+   - Auto-detect and display dataset-model relationships based on naming patterns?
+   - Add a "trained on" field to models that you can set manually?
+   - Show a "related models" section on dataset detail views?
+   - All of the above?
+
+9. **Bimanual detection**: I added `single-manual` and `bimanual` as default tags. Currently these need to be manually assigned. **Question**: Is there a naming pattern in your HF repos that indicates bimanual vs single-manual? If so, I can auto-detect it during sync.
+
+## New Questions from This Session
+
+10. **Vercel project rename**: The Vercel project is still called "research-os". Should I rename it to "dreamhub" for consistency? This would change the default Vercel URL but the custom domain would stay the same.
+
+11. **npm package name**: The `package.json` still says `"name": "research-os"`. Should I update this to `dreamhub`?

@@ -96,10 +96,10 @@ export default function Sidebar({
     <>
       <div className="p-4 border-b border-gray-800 flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold text-white tracking-tight">
-            Research OS
+          <h1 className="text-lg font-bold text-white tracking-tight font-[var(--font-dm-mono)]">
+            DreamHub
           </h1>
-          <p className="text-xs text-gray-500 mt-0.5">Robotics Experiment Hub</p>
+          <p className="text-[10px] text-gray-500 mt-0.5 tracking-wide uppercase">Dream Machines</p>
         </div>
         <button
           onClick={() => setMobileOpen(false)}
@@ -186,7 +186,7 @@ export default function Sidebar({
         >
           <Menu size={22} />
         </button>
-        <h1 className="text-sm font-bold text-white">Research OS</h1>
+        <h1 className="text-sm font-bold text-white font-[var(--font-dm-mono)]">DreamHub</h1>
         <button
           onClick={onSync}
           disabled={syncing}

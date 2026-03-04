@@ -76,6 +76,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               <div className="text-center">
                 <div className="w-8 h-8 border-2 border-gray-700 border-t-blue-500 rounded-full animate-spin mx-auto" />
                 <p className="text-gray-400 mt-4">Loading &amp; syncing with HuggingFace...</p>
+                <p className="text-gray-600 text-xs mt-1 font-[var(--font-dm-mono)]">DreamHub</p>
               </div>
             </div>
           ) : (

@@ -14,6 +14,8 @@ import {
   X,
   Tag as TagIcon,
   Eye,
+  Type,
+  Loader2,
 } from "lucide-react";
 
 function visualizerUrl(hfId: string): string {
@@ -28,6 +30,11 @@ export default function DatasetsPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [editingTags, setEditingTags] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [renameLoading, setRenameLoading] = useState(false);
+  const [deletingHfId, setDeletingHfId] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [editMeta, setEditMeta] = useState({
     collectionConditions: "",
     teleoperatorInstructions: "",
@@ -78,8 +85,102 @@ export default function DatasetsPage() {
   };
 
   const handleDeleteDataset = (id: string) => {
-    if (!confirm("Remove this dataset from Research OS? (Does not delete from HuggingFace)")) return;
+    if (!confirm("Remove this dataset from DreamHub? (Does not delete from HuggingFace)")) return;
     ctx.deleteDataset(id);
+  };
+
+  const getHfToken = (): string | null => {
+    let token = localStorage.getItem("hf-token");
+    if (!token) {
+      token = prompt("Enter your HuggingFace token (write access required):");
+      if (token) localStorage.setItem("hf-token", token);
+    }
+    return token;
+  };
+
+  const handleRename = async (id: string, hfId: string) => {
+    if (!renameValue.trim() || renameValue.trim() === hfId.split("/")[1]) {
+      setRenamingId(null);
+      return;
+    }
+    const owner = hfId.split("/")[0];
+    const newName = renameValue.trim();
+    const newHfId = `${owner}/${newName}`;
+
+    if (!confirm(`Rename dataset on HuggingFace?\n\nFrom: ${hfId}\nTo: ${newHfId}\n\nThis changes the repo URL on HuggingFace. Existing links will break.`)) return;
+
+    const token = getHfToken();
+    if (!token) return;
+
+    setRenameLoading(true);
+    try {
+      const res = await fetch("https://huggingface.co/api/repos/move", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fromRepo: hfId,
+          toRepo: newHfId,
+          type: "dataset",
+        }),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`HF API error ${res.status}: ${text}`);
+      }
+      ctx.updateDataset(id, {
+        hfId: newHfId,
+        name: newName,
+        hfUrl: `https://huggingface.co/datasets/${newHfId}`,
+      });
+      setRenamingId(null);
+    } catch (err) {
+      alert(`Rename failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setRenameLoading(false);
+    }
+  };
+
+  const handleDeleteFromHf = async (id: string, hfId: string) => {
+    const confirmMsg = `Are you ABSOLUTELY sure you want to DELETE this dataset from HuggingFace?\n\nDataset: ${hfId}\n\nThis action is IRREVERSIBLE. All data will be permanently lost.`;
+    if (!confirm(confirmMsg)) return;
+
+    const doubleConfirm = prompt(`Type the dataset name "${hfId.split("/")[1]}" to confirm deletion:`);
+    if (doubleConfirm !== hfId.split("/")[1]) {
+      alert("Dataset name didn't match. Deletion cancelled.");
+      return;
+    }
+
+    const token = getHfToken();
+    if (!token) return;
+
+    setDeleteLoading(true);
+    try {
+      const res = await fetch(`https://huggingface.co/api/repos/delete`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: hfId,
+          type: "dataset",
+        }),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`HF API error ${res.status}: ${text}`);
+      }
+      ctx.deleteDataset(id);
+      alert("Dataset deleted from HuggingFace successfully.");
+    } catch (err) {
+      alert(`Delete failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setDeleteLoading(false);
+      setDeletingHfId(null);
+    }
   };
 
   return (
@@ -210,15 +311,15 @@ export default function DatasetsPage() {
 
               {isExpanded && (
                 <div className="border-t border-gray-800 p-3 md:p-4 space-y-4">
-                  {/* Visualizer link */}
-                  <div className="flex gap-2">
+                  {/* Links and actions */}
+                  <div className="flex flex-wrap gap-2">
                     <a
                       href={visualizerUrl(d.hfId)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-900/30 text-emerald-400 rounded-lg hover:bg-emerald-900/50 transition-colors"
                     >
-                      <Eye size={12} /> Open in LeRobot Visualizer
+                      <Eye size={12} /> Visualize
                     </a>
                     <a
                       href={d.hfUrl}
@@ -226,9 +327,74 @@ export default function DatasetsPage() {
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 bg-blue-900/30 text-blue-400 rounded-lg hover:bg-blue-900/50 transition-colors"
                     >
-                      <ExternalLink size={12} /> View on HuggingFace
+                      <ExternalLink size={12} /> HuggingFace
                     </a>
+                    <button
+                      onClick={() => { setRenamingId(d.id); setRenameValue(d.hfId.split("/")[1] || d.name); }}
+                      className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors"
+                    >
+                      <Type size={12} /> Rename on HF
+                    </button>
+                    <button
+                      onClick={() => setDeletingHfId(d.id)}
+                      disabled={deleteLoading}
+                      className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 bg-red-900/20 text-red-400 rounded-lg hover:bg-red-900/40 transition-colors"
+                    >
+                      <Trash2 size={12} /> Delete from HF
+                    </button>
                   </div>
+
+                  {/* Rename form */}
+                  {renamingId === d.id && (
+                    <div className="flex items-center gap-2 p-3 bg-gray-800/50 rounded-lg border border-gray-700">
+                      <span className="text-xs text-gray-400">{d.hfId.split("/")[0]}/</span>
+                      <input
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        className="flex-1 bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm text-white font-mono"
+                        onKeyDown={(e) => e.key === "Enter" && handleRename(d.id, d.hfId)}
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => handleRename(d.id, d.hfId)}
+                        disabled={renameLoading}
+                        className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded disabled:opacity-50"
+                      >
+                        {renameLoading ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                      </button>
+                      <button
+                        onClick={() => setRenamingId(null)}
+                        className="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Delete from HF confirmation */}
+                  {deletingHfId === d.id && (
+                    <div className="p-3 bg-red-900/20 rounded-lg border border-red-800/50">
+                      <p className="text-xs text-red-400 mb-2">
+                        This will permanently delete <strong>{d.hfId}</strong> from HuggingFace. This cannot be undone.
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleDeleteFromHf(d.id, d.hfId)}
+                          disabled={deleteLoading}
+                          className="px-3 py-1.5 bg-red-700 hover:bg-red-600 text-white text-xs rounded disabled:opacity-50 flex items-center gap-1"
+                        >
+                          {deleteLoading ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                          Confirm Delete
+                        </button>
+                        <button
+                          onClick={() => setDeletingHfId(null)}
+                          className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {isEditing ? (
                     <div className="space-y-3">

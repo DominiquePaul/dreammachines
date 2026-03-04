@@ -120,6 +120,8 @@ export async function syncFromHuggingFace(existing: ResearchData): Promise<Resea
     { name: "object-interaction", color: "#6366F1", category: "task" },
     { name: "SO-100", color: "#3B82F6", category: "robot" },
     { name: "Phosphobot", color: "#EC4899", category: "robot" },
+    { name: "single-manual", color: "#06B6D4", category: "robot" },
+    { name: "bimanual", color: "#D946EF", category: "robot" },
     { name: "ACT", color: "#14B8A6", category: "custom" },
     { name: "SmolVLA", color: "#F97316", category: "custom" },
     { name: "Diffusion", color: "#A855F7", category: "custom" },
