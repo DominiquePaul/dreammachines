@@ -89,13 +89,10 @@ export default function DatasetsPage() {
     ctx.deleteDataset(id);
   };
 
-  const getHfToken = (): string | null => {
-    let token = localStorage.getItem("hf-token");
-    if (!token) {
-      token = prompt("Enter your HuggingFace token (write access required):");
-      if (token) localStorage.setItem("hf-token", token);
-    }
-    return token;
+  const getAccessToken = async (): Promise<string | null> => {
+    const { supabase } = await import("@/lib/supabase");
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token || null;
   };
 
   const handleRename = async (id: string, hfId: string) => {
@@ -109,26 +106,22 @@ export default function DatasetsPage() {
 
     if (!confirm(`Rename dataset on HuggingFace?\n\nFrom: ${hfId}\nTo: ${newHfId}\n\nThis changes the repo URL on HuggingFace. Existing links will break.`)) return;
 
-    const token = getHfToken();
-    if (!token) return;
+    const token = await getAccessToken();
+    if (!token) { alert("Not authenticated"); return; }
 
     setRenameLoading(true);
     try {
-      const res = await fetch("https://huggingface.co/api/repos/move", {
+      const res = await fetch("/api/hf/rename", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          fromRepo: hfId,
-          toRepo: newHfId,
-          type: "dataset",
-        }),
+        body: JSON.stringify({ fromRepo: hfId, toRepo: newHfId }),
       });
       if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`HF API error ${res.status}: ${text}`);
+        const body = await res.json();
+        throw new Error(body.error || `Error ${res.status}`);
       }
       ctx.updateDataset(id, {
         hfId: newHfId,
@@ -153,25 +146,22 @@ export default function DatasetsPage() {
       return;
     }
 
-    const token = getHfToken();
-    if (!token) return;
+    const token = await getAccessToken();
+    if (!token) { alert("Not authenticated"); return; }
 
     setDeleteLoading(true);
     try {
-      const res = await fetch(`https://huggingface.co/api/repos/delete`, {
-        method: "DELETE",
+      const res = await fetch("/api/hf/delete", {
+        method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          name: hfId,
-          type: "dataset",
-        }),
+        body: JSON.stringify({ name: hfId }),
       });
       if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`HF API error ${res.status}: ${text}`);
+        const body = await res.json();
+        throw new Error(body.error || `Error ${res.status}`);
       }
       ctx.deleteDataset(id);
       alert("Dataset deleted from HuggingFace successfully.");

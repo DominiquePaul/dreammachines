@@ -17,8 +17,9 @@ import {
   Trash2,
   Menu,
   X,
+  LogOut,
 } from "lucide-react";
-import { readData, writeData } from "@/lib/storage";
+import { supabase } from "@/lib/supabase";
 import type { ResearchData } from "@/lib/types";
 
 const nav = [
@@ -38,6 +39,9 @@ export default function Sidebar({
   modelCount,
   onSync,
   onReset,
+  onImport,
+  data,
+  userEmail,
 }: {
   syncing: boolean;
   syncError: string | null;
@@ -46,17 +50,21 @@ export default function Sidebar({
   modelCount: number;
   onSync: () => void;
   onReset: () => void;
+  onImport: (d: ResearchData) => Promise<void>;
+  data: ResearchData;
+  userEmail: string;
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleExport = () => {
-    const data = readData();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: "application/json",
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `research-os-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `dreamhub-backup-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -69,15 +77,16 @@ export default function Sidebar({
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = (ev) => {
+      reader.onload = async (ev) => {
         try {
-          const imported = JSON.parse(ev.target?.result as string) as ResearchData;
+          const imported = JSON.parse(
+            ev.target?.result as string,
+          ) as ResearchData;
           if (!imported.datasets || !imported.models || !imported.tags) {
-            alert("Invalid Research OS data file.");
+            alert("Invalid DreamHub data file.");
             return;
           }
-          writeData(imported);
-          window.location.reload();
+          await onImport(imported);
         } catch {
           alert("Failed to parse JSON file.");
         }
@@ -88,8 +97,17 @@ export default function Sidebar({
   };
 
   const handleReset = () => {
-    if (!confirm("Reset ALL data? This will clear everything and re-sync from HuggingFace. This cannot be undone.")) return;
+    if (
+      !confirm(
+        "Reset ALL data? This will clear everything and re-sync from HuggingFace. This cannot be undone.",
+      )
+    )
+      return;
     onReset();
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
   };
 
   const sidebarContent = (
@@ -99,7 +117,9 @@ export default function Sidebar({
           <h1 className="text-lg font-bold text-white tracking-tight font-[var(--font-dm-mono)]">
             DreamHub
           </h1>
-          <p className="text-[10px] text-gray-500 mt-0.5 tracking-wide uppercase">Dream Machines</p>
+          <p className="text-[10px] text-gray-500 mt-0.5 tracking-wide uppercase">
+            Dream Machines
+          </p>
         </div>
         <button
           onClick={() => setMobileOpen(false)}
@@ -148,7 +168,9 @@ export default function Sidebar({
         {lastSynced && (
           <div className="text-[10px] text-gray-600">
             <p>Last: {new Date(lastSynced).toLocaleString()}</p>
-            <p>{datasetCount} datasets, {modelCount} models</p>
+            <p>
+              {datasetCount} datasets, {modelCount} models
+            </p>
           </div>
         )}
 
@@ -172,6 +194,18 @@ export default function Sidebar({
             <Trash2 size={12} /> Reset All Data
           </button>
         </div>
+
+        <div className="pt-2 border-t border-gray-800/50">
+          <div className="text-[10px] text-gray-600 truncate mb-1">
+            {userEmail}
+          </div>
+          <button
+            onClick={handleSignOut}
+            className="flex items-center gap-2 text-[11px] text-gray-500 hover:text-white transition-colors w-full"
+          >
+            <LogOut size={12} /> Sign Out
+          </button>
+        </div>
       </div>
     </>
   );
@@ -186,7 +220,9 @@ export default function Sidebar({
         >
           <Menu size={22} />
         </button>
-        <h1 className="text-sm font-bold text-white font-[var(--font-dm-mono)]">DreamHub</h1>
+        <h1 className="text-sm font-bold text-white font-[var(--font-dm-mono)]">
+          DreamHub
+        </h1>
         <button
           onClick={onSync}
           disabled={syncing}

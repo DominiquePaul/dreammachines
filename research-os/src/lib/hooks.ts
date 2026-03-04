@@ -3,9 +3,23 @@
 import { useState, useEffect, useCallback } from "react";
 import { v4 as uuid } from "uuid";
 import type { ResearchData, Hypothesis, Experiment, Tag } from "./types";
-import { readData, writeData } from "./storage";
 import { syncFromHuggingFace } from "./hf-sync";
 import { seedData } from "./seed";
+import {
+  fetchAllData,
+  saveSyncResult,
+  dbUpsertTag,
+  dbDeleteTag,
+  dbUpsertDataset,
+  dbDeleteDataset,
+  dbUpsertModel,
+  dbDeleteModel,
+  dbUpsertHypothesis,
+  dbDeleteHypothesis,
+  dbUpsertExperiment,
+  dbDeleteExperiment,
+  dbResetAll,
+} from "./supabase-db";
 
 const EMPTY: ResearchData = {
   hypotheses: [],
@@ -22,30 +36,38 @@ export function useResearchData() {
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
 
-  // Load from localStorage on mount
+  // Load from Supabase on mount
   useEffect(() => {
-    const stored = readData();
-    setData(stored);
-    setLoading(false);
-  }, []);
-
-  // Save to localStorage whenever data changes (skip initial empty state)
-  const save = useCallback((newData: ResearchData) => {
-    setData(newData);
-    writeData(newData);
+    fetchAllData()
+      .then((d) => {
+        setData(d);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to load data from Supabase:", err);
+        setLoading(false);
+      });
   }, []);
 
   const sync = useCallback(async () => {
     setSyncing(true);
     setSyncError(null);
     try {
-      const current = readData();
-      console.log("[ResearchOS] Starting HF sync, current datasets:", current.datasets.length);
+      const current = await fetchAllData();
+      console.log(
+        "[DreamHub] Starting HF sync, current datasets:",
+        current.datasets.length,
+      );
       const synced = await syncFromHuggingFace(current);
-      console.log("[ResearchOS] HF sync done, datasets:", synced.datasets.length, "models:", synced.models.length);
       const seeded = seedData(synced);
-      console.log("[ResearchOS] Seed done, hypotheses:", seeded.hypotheses.length);
-      save(seeded);
+      console.log(
+        "[DreamHub] HF sync done, datasets:",
+        seeded.datasets.length,
+        "models:",
+        seeded.models.length,
+      );
+      await saveSyncResult(seeded);
+      setData(seeded);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("Sync failed:", msg, err);
@@ -53,7 +75,7 @@ export function useResearchData() {
     } finally {
       setSyncing(false);
     }
-  }, [save]);
+  }, []);
 
   // Auto-sync on first load if never synced
   useEffect(() => {
@@ -64,112 +86,196 @@ export function useResearchData() {
 
   // --- CRUD operations ---
 
-  const addHypothesis = useCallback((partial: Partial<Hypothesis>) => {
-    const now = new Date().toISOString();
-    const h: Hypothesis = {
-      id: uuid(),
-      title: partial.title || "New Hypothesis",
-      description: partial.description || "",
-      status: partial.status || "exploring",
-      experimentIds: [],
-      tags: partial.tags || [],
-      createdAt: now,
-      updatedAt: now,
-    };
-    const next = { ...readData() };
-    next.hypotheses = [...next.hypotheses, h];
-    save(next);
-    return h;
-  }, [save]);
+  const addHypothesis = useCallback(
+    (partial: Partial<Hypothesis>) => {
+      const now = new Date().toISOString();
+      const h: Hypothesis = {
+        id: uuid(),
+        title: partial.title || "New Hypothesis",
+        description: partial.description || "",
+        status: partial.status || "exploring",
+        experimentIds: [],
+        tags: partial.tags || [],
+        createdAt: now,
+        updatedAt: now,
+      };
+      setData((prev) => ({ ...prev, hypotheses: [...prev.hypotheses, h] }));
+      dbUpsertHypothesis(h).catch((err) =>
+        console.error("Failed to save hypothesis:", err),
+      );
+      return h;
+    },
+    [],
+  );
 
-  const updateHypothesis = useCallback((id: string, updates: Partial<Hypothesis>) => {
-    const next = { ...readData() };
-    next.hypotheses = next.hypotheses.map(h =>
-      h.id === id ? { ...h, ...updates, updatedAt: new Date().toISOString() } : h
-    );
-    save(next);
-  }, [save]);
+  const updateHypothesis = useCallback(
+    (id: string, updates: Partial<Hypothesis>) => {
+      setData((prev) => {
+        const next = {
+          ...prev,
+          hypotheses: prev.hypotheses.map((h) =>
+            h.id === id
+              ? { ...h, ...updates, updatedAt: new Date().toISOString() }
+              : h,
+          ),
+        };
+        const updated = next.hypotheses.find((h) => h.id === id);
+        if (updated)
+          dbUpsertHypothesis(updated).catch((err) =>
+            console.error("Failed to update hypothesis:", err),
+          );
+        return next;
+      });
+    },
+    [],
+  );
 
   const deleteHypothesis = useCallback((id: string) => {
-    const next = { ...readData() };
-    next.hypotheses = next.hypotheses.filter(h => h.id !== id);
-    next.experiments = next.experiments.filter(e => e.hypothesisId !== id);
-    save(next);
-  }, [save]);
-
-  const addExperiment = useCallback((partial: Partial<Experiment> & { hypothesisId: string }) => {
-    const now = new Date().toISOString();
-    const e: Experiment = {
-      id: uuid(),
-      name: partial.name || "New Experiment",
-      hypothesisId: partial.hypothesisId,
-      datasetIds: partial.datasetIds || [],
-      modelIds: partial.modelIds || [],
-      status: partial.status || "planned",
-      notes: partial.notes || "",
-      results: partial.results || "",
-      createdAt: now,
-      updatedAt: now,
-    };
-    const next = { ...readData() };
-    next.experiments = [...next.experiments, e];
-    next.hypotheses = next.hypotheses.map(h =>
-      h.id === e.hypothesisId ? { ...h, experimentIds: [...h.experimentIds, e.id] } : h
+    setData((prev) => ({
+      ...prev,
+      hypotheses: prev.hypotheses.filter((h) => h.id !== id),
+      experiments: prev.experiments.filter((e) => e.hypothesisId !== id),
+    }));
+    dbDeleteHypothesis(id).catch((err) =>
+      console.error("Failed to delete hypothesis:", err),
     );
-    save(next);
-    return e;
-  }, [save]);
+  }, []);
 
-  const updateExperiment = useCallback((id: string, updates: Partial<Experiment>) => {
-    const next = { ...readData() };
-    next.experiments = next.experiments.map(e =>
-      e.id === id ? { ...e, ...updates, updatedAt: new Date().toISOString() } : e
-    );
-    save(next);
-  }, [save]);
+  const addExperiment = useCallback(
+    (partial: Partial<Experiment> & { hypothesisId: string }) => {
+      const now = new Date().toISOString();
+      const e: Experiment = {
+        id: uuid(),
+        name: partial.name || "New Experiment",
+        hypothesisId: partial.hypothesisId,
+        datasetIds: partial.datasetIds || [],
+        modelIds: partial.modelIds || [],
+        status: partial.status || "planned",
+        notes: partial.notes || "",
+        results: partial.results || "",
+        createdAt: now,
+        updatedAt: now,
+      };
+      setData((prev) => ({
+        ...prev,
+        experiments: [...prev.experiments, e],
+        hypotheses: prev.hypotheses.map((h) =>
+          h.id === e.hypothesisId
+            ? { ...h, experimentIds: [...h.experimentIds, e.id] }
+            : h,
+        ),
+      }));
+      dbUpsertExperiment(e).catch((err) =>
+        console.error("Failed to save experiment:", err),
+      );
+      return e;
+    },
+    [],
+  );
+
+  const updateExperiment = useCallback(
+    (id: string, updates: Partial<Experiment>) => {
+      setData((prev) => {
+        const next = {
+          ...prev,
+          experiments: prev.experiments.map((e) =>
+            e.id === id
+              ? { ...e, ...updates, updatedAt: new Date().toISOString() }
+              : e,
+          ),
+        };
+        const updated = next.experiments.find((e) => e.id === id);
+        if (updated)
+          dbUpsertExperiment(updated).catch((err) =>
+            console.error("Failed to update experiment:", err),
+          );
+        return next;
+      });
+    },
+    [],
+  );
 
   const deleteExperiment = useCallback((id: string) => {
-    const next = { ...readData() };
-    next.experiments = next.experiments.filter(e => e.id !== id);
-    next.hypotheses = next.hypotheses.map(h => ({
-      ...h, experimentIds: h.experimentIds.filter(eid => eid !== id)
+    setData((prev) => ({
+      ...prev,
+      experiments: prev.experiments.filter((e) => e.id !== id),
+      hypotheses: prev.hypotheses.map((h) => ({
+        ...h,
+        experimentIds: h.experimentIds.filter((eid) => eid !== id),
+      })),
     }));
-    save(next);
-  }, [save]);
-
-  const updateDataset = useCallback((id: string, updates: Record<string, unknown>) => {
-    const next = { ...readData() };
-    next.datasets = next.datasets.map(d =>
-      d.id === id ? { ...d, ...updates } : d
+    dbDeleteExperiment(id).catch((err) =>
+      console.error("Failed to delete experiment:", err),
     );
-    save(next);
-  }, [save]);
+  }, []);
+
+  const updateDataset = useCallback(
+    (id: string, updates: Record<string, unknown>) => {
+      setData((prev) => {
+        const next = {
+          ...prev,
+          datasets: prev.datasets.map((d) =>
+            d.id === id ? { ...d, ...updates } : d,
+          ),
+        };
+        const updated = next.datasets.find((d) => d.id === id);
+        if (updated)
+          dbUpsertDataset(updated).catch((err) =>
+            console.error("Failed to update dataset:", err),
+          );
+        return next;
+      });
+    },
+    [],
+  );
 
   const deleteDataset = useCallback((id: string) => {
-    const next = { ...readData() };
-    next.datasets = next.datasets.filter(d => d.id !== id);
-    next.experiments = next.experiments.map(e => ({
-      ...e, datasetIds: e.datasetIds.filter(did => did !== id)
+    setData((prev) => ({
+      ...prev,
+      datasets: prev.datasets.filter((d) => d.id !== id),
+      experiments: prev.experiments.map((e) => ({
+        ...e,
+        datasetIds: e.datasetIds.filter((did) => did !== id),
+      })),
     }));
-    save(next);
-  }, [save]);
-
-  const updateModel = useCallback((id: string, updates: Record<string, unknown>) => {
-    const next = { ...readData() };
-    next.models = next.models.map(m =>
-      m.id === id ? { ...m, ...updates } : m
+    dbDeleteDataset(id).catch((err) =>
+      console.error("Failed to delete dataset:", err),
     );
-    save(next);
-  }, [save]);
+  }, []);
+
+  const updateModel = useCallback(
+    (id: string, updates: Record<string, unknown>) => {
+      setData((prev) => {
+        const next = {
+          ...prev,
+          models: prev.models.map((m) =>
+            m.id === id ? { ...m, ...updates } : m,
+          ),
+        };
+        const updated = next.models.find((m) => m.id === id);
+        if (updated)
+          dbUpsertModel(updated).catch((err) =>
+            console.error("Failed to update model:", err),
+          );
+        return next;
+      });
+    },
+    [],
+  );
 
   const deleteModel = useCallback((id: string) => {
-    const next = { ...readData() };
-    next.models = next.models.filter(m => m.id !== id);
-    next.experiments = next.experiments.map(e => ({
-      ...e, modelIds: e.modelIds.filter(mid => mid !== id)
+    setData((prev) => ({
+      ...prev,
+      models: prev.models.filter((m) => m.id !== id),
+      experiments: prev.experiments.map((e) => ({
+        ...e,
+        modelIds: e.modelIds.filter((mid) => mid !== id),
+      })),
     }));
-    save(next);
-  }, [save]);
+    dbDeleteModel(id).catch((err) =>
+      console.error("Failed to delete model:", err),
+    );
+  }, []);
 
   const addTag = useCallback((partial: Partial<Tag>) => {
     const t: Tag = {
@@ -178,30 +284,60 @@ export function useResearchData() {
       color: partial.color || "#6B7280",
       category: partial.category || "custom",
     };
-    const next = { ...readData() };
-    next.tags = [...next.tags, t];
-    save(next);
+    setData((prev) => ({ ...prev, tags: [...prev.tags, t] }));
+    dbUpsertTag(t).catch((err) =>
+      console.error("Failed to save tag:", err),
+    );
     return t;
-  }, [save]);
+  }, []);
 
   const updateTag = useCallback((id: string, updates: Partial<Tag>) => {
-    const next = { ...readData() };
-    next.tags = next.tags.map(t => t.id === id ? { ...t, ...updates } : t);
-    save(next);
-  }, [save]);
+    setData((prev) => {
+      const next = {
+        ...prev,
+        tags: prev.tags.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+      };
+      const updated = next.tags.find((t) => t.id === id);
+      if (updated)
+        dbUpsertTag(updated).catch((err) =>
+          console.error("Failed to update tag:", err),
+        );
+      return next;
+    });
+  }, []);
 
   const deleteTag = useCallback((id: string) => {
-    const next = { ...readData() };
-    next.tags = next.tags.filter(t => t.id !== id);
-    next.datasets = next.datasets.map(d => ({ ...d, tags: d.tags.filter(t => t !== id) }));
-    next.models = next.models.map(m => ({ ...m, tags: m.tags.filter(t => t !== id) }));
-    next.hypotheses = next.hypotheses.map(h => ({ ...h, tags: h.tags.filter(t => t !== id) }));
-    save(next);
-  }, [save]);
+    setData((prev) => ({
+      ...prev,
+      tags: prev.tags.filter((t) => t.id !== id),
+      datasets: prev.datasets.map((d) => ({
+        ...d,
+        tags: d.tags.filter((t) => t !== id),
+      })),
+      models: prev.models.map((m) => ({
+        ...m,
+        tags: m.tags.filter((t) => t !== id),
+      })),
+      hypotheses: prev.hypotheses.map((h) => ({
+        ...h,
+        tags: h.tags.filter((t) => t !== id),
+      })),
+    }));
+    dbDeleteTag(id).catch((err) =>
+      console.error("Failed to delete tag:", err),
+    );
+  }, []);
 
-  const resetAll = useCallback(() => {
-    save(EMPTY);
-  }, [save]);
+  const resetAll = useCallback(async () => {
+    setData(EMPTY);
+    await dbResetAll();
+  }, []);
+
+  const importData = useCallback(async (imported: ResearchData) => {
+    await dbResetAll();
+    await saveSyncResult(imported);
+    setData(imported);
+  }, []);
 
   return {
     data,
@@ -223,5 +359,6 @@ export function useResearchData() {
     updateTag,
     deleteTag,
     resetAll,
+    importData,
   };
 }
