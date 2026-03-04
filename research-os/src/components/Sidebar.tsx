@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import {
   LayoutDashboard,
   FlaskConical,
@@ -14,8 +15,10 @@ import {
   Download,
   Upload,
   Trash2,
+  Menu,
+  X,
 } from "lucide-react";
-import { readData, writeData, clearData } from "@/lib/storage";
+import { readData, writeData } from "@/lib/storage";
 import type { ResearchData } from "@/lib/types";
 
 const nav = [
@@ -45,6 +48,7 @@ export default function Sidebar({
   onReset: () => void;
 }) {
   const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleExport = () => {
     const data = readData();
@@ -88,13 +92,21 @@ export default function Sidebar({
     onReset();
   };
 
-  return (
-    <aside className="w-56 bg-gray-950 text-gray-300 flex flex-col border-r border-gray-800 shrink-0">
-      <div className="p-4 border-b border-gray-800">
-        <h1 className="text-lg font-bold text-white tracking-tight">
-          Research OS
-        </h1>
-        <p className="text-xs text-gray-500 mt-0.5">Robotics Experiment Hub</p>
+  const sidebarContent = (
+    <>
+      <div className="p-4 border-b border-gray-800 flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-bold text-white tracking-tight">
+            Research OS
+          </h1>
+          <p className="text-xs text-gray-500 mt-0.5">Robotics Experiment Hub</p>
+        </div>
+        <button
+          onClick={() => setMobileOpen(false)}
+          className="md:hidden p-1 text-gray-400 hover:text-white"
+        >
+          <X size={20} />
+        </button>
       </div>
 
       <nav className="flex-1 py-2">
@@ -104,7 +116,8 @@ export default function Sidebar({
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
+              onClick={() => setMobileOpen(false)}
+              className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
                 active
                   ? "bg-gray-800 text-white font-medium"
                   : "hover:bg-gray-900 hover:text-white"
@@ -160,6 +173,50 @@ export default function Sidebar({
           </button>
         </div>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile top bar */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-gray-950 border-b border-gray-800 px-4 py-3 flex items-center justify-between">
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="p-1 text-gray-400 hover:text-white"
+        >
+          <Menu size={22} />
+        </button>
+        <h1 className="text-sm font-bold text-white">Research OS</h1>
+        <button
+          onClick={onSync}
+          disabled={syncing}
+          className="p-1 text-gray-400 hover:text-white disabled:opacity-50"
+        >
+          <RefreshCw size={16} className={syncing ? "animate-spin" : ""} />
+        </button>
+      </div>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-50 bg-black/60"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Mobile slide-out sidebar */}
+      <aside
+        className={`md:hidden fixed top-0 left-0 bottom-0 z-50 w-64 bg-gray-950 text-gray-300 flex flex-col border-r border-gray-800 transform transition-transform duration-200 ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        {sidebarContent}
+      </aside>
+
+      {/* Desktop sidebar */}
+      <aside className="hidden md:flex w-56 bg-gray-950 text-gray-300 flex-col border-r border-gray-800 shrink-0">
+        {sidebarContent}
+      </aside>
+    </>
   );
 }

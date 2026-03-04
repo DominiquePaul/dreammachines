@@ -12,7 +12,12 @@ import {
   X,
   Check,
   Link as LinkIcon,
+  Eye,
 } from "lucide-react";
+
+function visualizerUrl(hfId: string): string {
+  return `https://huggingface.co/spaces/lerobot/visualize_dataset?path=%2F${encodeURIComponent(hfId)}%2Fepisode_0`;
+}
 
 const STATUS_COLORS: Record<string, string> = {
   active: "bg-green-900/50 text-green-400",
@@ -133,20 +138,21 @@ export default function ExperimentsPage() {
   const modelMap = new Map(data.models.map((m) => [m.id, m]));
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-4 md:space-y-6">
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-white">Experiments</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-white">Experiments</h1>
           <p className="text-gray-400 text-sm mt-1">
             Hypothesis-centered view of all experiments
           </p>
         </div>
         <button
           onClick={handleAddHypothesis}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
+          className="flex items-center gap-2 px-3 md:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors shrink-0"
         >
           <Plus size={16} />
-          New Hypothesis
+          <span className="hidden sm:inline">New Hypothesis</span>
+          <span className="sm:hidden">New</span>
         </button>
       </div>
 
@@ -247,7 +253,7 @@ export default function ExperimentsPage() {
                           const isEditingThisExp = editingExp === exp.id;
 
                           return (
-                            <div key={exp.id} className="p-4 pl-12">
+                            <div key={exp.id} className="p-3 md:p-4 pl-6 md:pl-12">
                               {isEditingThisExp ? (
                                 <div className="space-y-3">
                                   <div className="flex gap-3">
@@ -434,10 +440,14 @@ export default function ExperimentsPage() {
                                           const ds = datasetMap.get(did);
                                           if (!ds) return null;
                                           return (
-                                            <a key={did} href={ds.hfUrl} target="_blank" rel="noopener noreferrer"
-                                              className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 bg-blue-900/30 text-blue-400 rounded-full hover:bg-blue-900/50">
-                                              <ExternalLink size={10} />{ds.name}
-                                            </a>
+                                            <span key={did} className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 bg-blue-900/30 text-blue-400 rounded-full">
+                                              <a href={visualizerUrl(ds.hfId)} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400" title="Visualize">
+                                                <Eye size={10} />
+                                              </a>
+                                              <a href={ds.hfUrl} target="_blank" rel="noopener noreferrer" className="hover:text-blue-300">
+                                                {ds.name}
+                                              </a>
+                                            </span>
                                           );
                                         })}
                                       </div>
@@ -472,7 +482,7 @@ export default function ExperimentsPage() {
                         })}
                       </div>
                     )}
-                    <div className="p-3 pl-12">
+                    <div className="p-3 pl-6 md:pl-12">
                       <button onClick={() => handleAddExperiment(h.id)}
                         className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300">
                         <Plus size={14} />Add Experiment

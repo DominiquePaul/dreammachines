@@ -13,7 +13,12 @@ import {
   Check,
   X,
   Tag as TagIcon,
+  Eye,
 } from "lucide-react";
+
+function visualizerUrl(hfId: string): string {
+  return `https://huggingface.co/spaces/lerobot/visualize_dataset?path=%2F${encodeURIComponent(hfId)}%2Fepisode_0`;
+}
 
 export default function DatasetsPage() {
   const ctx = useData();
@@ -78,17 +83,17 @@ export default function DatasetsPage() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-4 md:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">Datasets</h1>
+        <h1 className="text-xl md:text-2xl font-bold text-white">Datasets</h1>
         <p className="text-gray-400 text-sm mt-1">
           {data.datasets.length} datasets synced from HuggingFace
         </p>
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-md">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+        <div className="relative flex-1">
           <Search
             size={16}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
@@ -126,7 +131,7 @@ export default function DatasetsPage() {
               className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden"
             >
               <div
-                className="p-4 flex items-center gap-3 cursor-pointer hover:bg-gray-800/30 transition-colors"
+                className="p-3 md:p-4 flex items-center gap-2 md:gap-3 cursor-pointer hover:bg-gray-800/30 transition-colors"
                 onClick={() =>
                   setExpandedId(isExpanded ? null : d.id)
                 }
@@ -148,14 +153,14 @@ export default function DatasetsPage() {
                       />
                     )}
                   </div>
-                  <div className="flex items-center gap-3 mt-1">
+                  <div className="flex items-center gap-2 md:gap-3 mt-1 flex-wrap">
                     <span className="text-xs text-gray-500">
                       {d.metadata.episodeCount} eps
                     </span>
                     <span className="text-xs text-gray-500">
                       {d.metadata.estimatedHours}h
                     </span>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-gray-500 hidden sm:inline">
                       {d.downloads} downloads
                     </span>
                     {d.tags.map((tid) => {
@@ -175,12 +180,22 @@ export default function DatasetsPage() {
                     })}
                   </div>
                 </div>
-                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-1 md:gap-2" onClick={(e) => e.stopPropagation()}>
+                  <a
+                    href={visualizerUrl(d.hfId)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1.5 text-gray-500 hover:text-emerald-400"
+                    title="Visualize dataset"
+                  >
+                    <Eye size={14} />
+                  </a>
                   <a
                     href={d.hfUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="p-1.5 text-gray-500 hover:text-blue-400"
+                    title="View on HuggingFace"
                   >
                     <ExternalLink size={14} />
                   </a>
@@ -194,7 +209,27 @@ export default function DatasetsPage() {
               </div>
 
               {isExpanded && (
-                <div className="border-t border-gray-800 p-4 space-y-4">
+                <div className="border-t border-gray-800 p-3 md:p-4 space-y-4">
+                  {/* Visualizer link */}
+                  <div className="flex gap-2">
+                    <a
+                      href={visualizerUrl(d.hfId)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-900/30 text-emerald-400 rounded-lg hover:bg-emerald-900/50 transition-colors"
+                    >
+                      <Eye size={12} /> Open in LeRobot Visualizer
+                    </a>
+                    <a
+                      href={d.hfUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 bg-blue-900/30 text-blue-400 rounded-lg hover:bg-blue-900/50 transition-colors"
+                    >
+                      <ExternalLink size={12} /> View on HuggingFace
+                    </a>
+                  </div>
+
                   {isEditing ? (
                     <div className="space-y-3">
                       <Field
@@ -267,13 +302,13 @@ export default function DatasetsPage() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => saveEdit(d.id)}
-                          className="flex items-center gap-1 px-3 py-1 bg-green-700 hover:bg-green-600 text-white text-xs rounded"
+                          className="flex items-center gap-1 px-3 py-1.5 bg-green-700 hover:bg-green-600 text-white text-xs rounded"
                         >
                           <Check size={14} /> Save
                         </button>
                         <button
                           onClick={() => setEditing(null)}
-                          className="flex items-center gap-1 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded"
+                          className="flex items-center gap-1 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded"
                         >
                           <X size={14} /> Cancel
                         </button>
@@ -289,7 +324,7 @@ export default function DatasetsPage() {
                           <Pencil size={12} /> Edit Metadata
                         </button>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <MetaField
                           label="Collection Conditions"
                           value={d.metadata.collectionConditions}

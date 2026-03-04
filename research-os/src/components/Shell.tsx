@@ -70,7 +70,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           onSync={ctx.sync}
           onReset={ctx.resetAll}
         />
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto pt-14 md:pt-0">
           {ctx.loading && ctx.data.lastSynced === "" ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">

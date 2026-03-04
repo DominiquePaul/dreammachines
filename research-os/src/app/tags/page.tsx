@@ -58,9 +58,9 @@ export default function TagsPage() {
   }));
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-8">
+    <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-6 md:space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-white">Tags</h1>
+        <h1 className="text-xl md:text-2xl font-bold text-white">Tags</h1>
         <p className="text-gray-400 text-sm mt-1">
           Manage tags for datasets, models, and experiments
         </p>
@@ -69,8 +69,8 @@ export default function TagsPage() {
       {/* Create new tag */}
       <div className="bg-gray-900 rounded-lg border border-gray-800 p-4">
         <h2 className="text-sm font-semibold text-gray-300 mb-3">Create New Tag</h2>
-        <div className="flex items-end gap-3">
-          <div className="flex-1">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-[150px]">
             <label className="text-[10px] text-gray-500 uppercase">Name</label>
             <input
               value={newName}
@@ -94,7 +94,7 @@ export default function TagsPage() {
           </div>
           <div>
             <label className="text-[10px] text-gray-500 uppercase">Color</label>
-            <div className="flex gap-1 mt-0.5">
+            <div className="flex flex-wrap gap-1 mt-0.5">
               {PRESET_COLORS.map((c) => (
                 <button
                   key={c}

@@ -171,12 +171,12 @@ export default function GraphPage() {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="p-6 pb-0">
-        <h1 className="text-2xl font-bold text-white">Relational Graph</h1>
+      <div className="p-4 md:p-6 pb-0">
+        <h1 className="text-xl md:text-2xl font-bold text-white">Relational Graph</h1>
         <p className="text-gray-400 text-sm mt-1">
           Visual map of hypotheses, experiments, datasets, and models. Click a node to navigate.
         </p>
-        <div className="flex gap-4 mt-3">
+        <div className="flex flex-wrap gap-3 md:gap-4 mt-3">
           {Object.entries(NODE_COLORS).map(([type, color]) => (
             <div key={type} className="flex items-center gap-1.5">
               <span
@@ -188,7 +188,7 @@ export default function GraphPage() {
           ))}
         </div>
       </div>
-      <div className="flex-1 m-6 rounded-lg border border-gray-800 overflow-hidden">
+      <div className="flex-1 m-3 md:m-6 rounded-lg border border-gray-800 overflow-hidden">
         <ReactFlow
           nodes={nodes}
           edges={edges}
