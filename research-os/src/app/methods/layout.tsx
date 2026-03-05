@@ -6,12 +6,16 @@ const mathjaxConfig = {
   loader: { load: ["[tex]/ams"] },
   tex: {
     packages: { "[+]": ["ams"] },
-    inlineMath: [["$", "$"]],
+    inlineMath: [["\\(", "\\)"]],
     displayMath: [["$$", "$$"]],
   },
 };
 
-export function MathProviders({ children }: { children: React.ReactNode }) {
+export default function MethodsLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <MathJaxContext
       version={3}
