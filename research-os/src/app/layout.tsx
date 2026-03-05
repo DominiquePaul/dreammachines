@@ -18,7 +18,7 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Research OS",
   description: "Research paper tracker and second brain for Dream Machines",
-  icons: { icon: "/favicon.svg" },
+  icons: { icon: "/favicon.ico", apple: "/apple-icon.png" },
 };
 
 const themeScript = `(function(){try{var t='dark';document.documentElement.setAttribute('data-theme',t)}catch(e){}})()`;
