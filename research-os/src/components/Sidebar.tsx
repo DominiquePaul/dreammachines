@@ -9,6 +9,7 @@ import {
   Network,
   Database,
   Box,
+  ClipboardCheck,
   Tags,
   RefreshCw,
   AlertCircle,
@@ -28,6 +29,7 @@ const nav = [
   { href: "/graph", label: "Graph", icon: Network },
   { href: "/datasets", label: "Datasets", icon: Database },
   { href: "/models", label: "Models", icon: Box },
+  { href: "/evaluations", label: "Evaluations", icon: ClipboardCheck },
   { href: "/tags", label: "Tags", icon: Tags },
 ];
 

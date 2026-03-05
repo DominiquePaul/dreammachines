@@ -7,6 +7,7 @@ import type {
   ModelIteration,
   Hypothesis,
   Experiment,
+  Evaluation,
 } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -39,6 +40,7 @@ export async function fetchAllData(): Promise<ResearchData> {
     { data: iterations },
     { data: hypotheses },
     { data: experiments },
+    { data: evaluations },
     { data: datasetTags },
     { data: modelTags },
     { data: hypothesisTags },
@@ -53,6 +55,7 @@ export async function fetchAllData(): Promise<ResearchData> {
     supabase.from("model_iterations").select("*"),
     supabase.from("hypotheses").select("*"),
     supabase.from("experiments").select("*"),
+    supabase.from("evaluations").select("*"),
     supabase.from("dataset_tags").select("*"),
     supabase.from("model_tags").select("*"),
     supabase.from("hypothesis_tags").select("*"),
@@ -104,6 +107,7 @@ export async function fetchAllData(): Promise<ResearchData> {
         estimatedHours: d.estimated_hours,
         episodeCount: d.episode_count,
       },
+      status: (d.status || "synced") as Dataset["status"],
       hfUrl: d.hf_url,
       downloads: d.downloads,
       lastModified: d.last_modified,
@@ -154,6 +158,16 @@ export async function fetchAllData(): Promise<ResearchData> {
       results: e.results,
       createdAt: e.created_at,
       updatedAt: e.updated_at,
+    })),
+    evaluations: (evaluations || []).map((ev) => ({
+      id: ev.id,
+      experimentId: ev.experiment_id,
+      modelId: ev.model_id,
+      iterationId: ev.iteration_id,
+      evalDatasetId: ev.eval_dataset_id,
+      outcome: ev.outcome as Evaluation["outcome"],
+      notes: ev.notes,
+      createdAt: ev.created_at,
     })),
     lastSynced: settings?.[0]?.value || "",
   };
@@ -238,6 +252,7 @@ export async function dbUpsertDataset(dataset: Dataset): Promise<void> {
     notes: dataset.metadata.notes,
     estimated_hours: dataset.metadata.estimatedHours,
     episode_count: dataset.metadata.episodeCount,
+    status: dataset.status || "synced",
     hf_url: dataset.hfUrl,
     downloads: dataset.downloads,
     last_modified: dataset.lastModified,
@@ -410,6 +425,29 @@ export async function dbDeleteExperiment(id: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Evaluation CRUD
+// ---------------------------------------------------------------------------
+
+export async function dbUpsertEvaluation(evaluation: Evaluation): Promise<void> {
+  const { error } = await supabase.from("evaluations").upsert({
+    id: evaluation.id,
+    experiment_id: evaluation.experimentId,
+    model_id: evaluation.modelId,
+    iteration_id: evaluation.iterationId,
+    eval_dataset_id: evaluation.evalDatasetId,
+    outcome: evaluation.outcome,
+    notes: evaluation.notes,
+    created_at: evaluation.createdAt,
+  });
+  if (error) throw error;
+}
+
+export async function dbDeleteEvaluation(id: string): Promise<void> {
+  const { error } = await supabase.from("evaluations").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ---------------------------------------------------------------------------
 // Settings
 // ---------------------------------------------------------------------------
 
@@ -427,6 +465,7 @@ export async function dbSetLastSynced(ts: string): Promise<void> {
 
 export async function dbResetAll(): Promise<void> {
   // Delete in order that respects dependencies (CASCADE handles most, but be safe)
+  await supabase.from("evaluations").delete().neq("id", "");
   await supabase.from("experiment_datasets").delete().neq("experiment_id", "");
   await supabase.from("experiment_models").delete().neq("experiment_id", "");
   await supabase.from("iteration_datasets").delete().neq("iteration_id", "");

@@ -3,7 +3,7 @@
 import { useResearchData } from "@/lib/hooks";
 import { supabase } from "@/lib/supabase";
 import Sidebar from "./Sidebar";
-import type { ResearchData, Hypothesis, Experiment, Tag } from "@/lib/types";
+import type { ResearchData, Dataset, Evaluation, Hypothesis, Experiment, Tag } from "@/lib/types";
 import { createContext, useContext, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 
@@ -21,10 +21,14 @@ interface DataCtx {
   ) => Experiment;
   updateExperiment: (id: string, u: Partial<Experiment>) => void;
   deleteExperiment: (id: string) => void;
+  addDataset: (p: Partial<Dataset>) => Dataset;
   updateDataset: (id: string, u: Record<string, unknown>) => void;
   deleteDataset: (id: string) => void;
   updateModel: (id: string, u: Record<string, unknown>) => void;
   deleteModel: (id: string) => void;
+  addEvaluation: (p: Partial<Evaluation> & { modelId: string }) => Evaluation;
+  updateEvaluation: (id: string, u: Partial<Evaluation>) => void;
+  deleteEvaluation: (id: string) => void;
   addTag: (p: Partial<Tag>) => Tag;
   updateTag: (id: string, u: Partial<Tag>) => void;
   deleteTag: (id: string) => void;
@@ -43,6 +47,7 @@ const DataContext = createContext<DataCtx>({
     experiments: [],
     datasets: [],
     models: [],
+    evaluations: [],
     tags: [],
     lastSynced: "",
   },
@@ -56,10 +61,14 @@ const DataContext = createContext<DataCtx>({
   addExperiment: noopReturn,
   updateExperiment: noop,
   deleteExperiment: noop,
+  addDataset: noopReturn,
   updateDataset: noop,
   deleteDataset: noop,
   updateModel: noop,
   deleteModel: noop,
+  addEvaluation: noopReturn,
+  updateEvaluation: noop,
+  deleteEvaluation: noop,
   addTag: noopReturn,
   updateTag: noop,
   deleteTag: noop,

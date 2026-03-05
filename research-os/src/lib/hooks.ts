@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { v4 as uuid } from "uuid";
-import type { ResearchData, Hypothesis, Experiment, Tag } from "./types";
+import type { ResearchData, Dataset, Evaluation, Hypothesis, Experiment, Tag } from "./types";
 import { syncFromHuggingFace } from "./hf-sync";
 import { seedData } from "./seed";
 import {
@@ -18,6 +18,8 @@ import {
   dbDeleteHypothesis,
   dbUpsertExperiment,
   dbDeleteExperiment,
+  dbUpsertEvaluation,
+  dbDeleteEvaluation,
   dbResetAll,
 } from "./supabase-db";
 
@@ -26,6 +28,7 @@ const EMPTY: ResearchData = {
   experiments: [],
   datasets: [],
   models: [],
+  evaluations: [],
   tags: [],
   lastSynced: "",
 };
@@ -209,6 +212,38 @@ export function useResearchData() {
     );
   }, []);
 
+  const addDataset = useCallback(
+    (partial: Partial<Dataset>) => {
+      const now = new Date().toISOString();
+      const d: Dataset = {
+        id: uuid(),
+        hfId: "",
+        name: partial.name || "New Collection",
+        description: partial.description || "",
+        tags: partial.tags || [],
+        metadata: partial.metadata || {
+          collectionConditions: "",
+          teleoperatorInstructions: "",
+          knownIssues: [],
+          notes: "",
+          estimatedHours: 0,
+          episodeCount: 0,
+        },
+        status: "planned",
+        hfUrl: "",
+        downloads: 0,
+        lastModified: now,
+        createdAt: now,
+      };
+      setData((prev) => ({ ...prev, datasets: [...prev.datasets, d] }));
+      dbUpsertDataset(d).catch((err) =>
+        console.error("Failed to save dataset:", err),
+      );
+      return d;
+    },
+    [],
+  );
+
   const updateDataset = useCallback(
     (id: string, updates: Record<string, unknown>) => {
       setData((prev) => {
@@ -274,6 +309,57 @@ export function useResearchData() {
     }));
     dbDeleteModel(id).catch((err) =>
       console.error("Failed to delete model:", err),
+    );
+  }, []);
+
+  const addEvaluation = useCallback(
+    (partial: Partial<Evaluation> & { modelId: string }) => {
+      const ev: Evaluation = {
+        id: uuid(),
+        experimentId: partial.experimentId || null,
+        modelId: partial.modelId,
+        iterationId: partial.iterationId || null,
+        evalDatasetId: partial.evalDatasetId || null,
+        outcome: partial.outcome || "success",
+        notes: partial.notes || "",
+        createdAt: new Date().toISOString(),
+      };
+      setData((prev) => ({ ...prev, evaluations: [...prev.evaluations, ev] }));
+      dbUpsertEvaluation(ev).catch((err) =>
+        console.error("Failed to save evaluation:", err),
+      );
+      return ev;
+    },
+    [],
+  );
+
+  const updateEvaluation = useCallback(
+    (id: string, updates: Partial<Evaluation>) => {
+      setData((prev) => {
+        const next = {
+          ...prev,
+          evaluations: prev.evaluations.map((ev) =>
+            ev.id === id ? { ...ev, ...updates } : ev,
+          ),
+        };
+        const updated = next.evaluations.find((ev) => ev.id === id);
+        if (updated)
+          dbUpsertEvaluation(updated).catch((err) =>
+            console.error("Failed to update evaluation:", err),
+          );
+        return next;
+      });
+    },
+    [],
+  );
+
+  const deleteEvaluation = useCallback((id: string) => {
+    setData((prev) => ({
+      ...prev,
+      evaluations: prev.evaluations.filter((ev) => ev.id !== id),
+    }));
+    dbDeleteEvaluation(id).catch((err) =>
+      console.error("Failed to delete evaluation:", err),
     );
   }, []);
 
@@ -351,10 +437,14 @@ export function useResearchData() {
     addExperiment,
     updateExperiment,
     deleteExperiment,
+    addDataset,
     updateDataset,
     deleteDataset,
     updateModel,
     deleteModel,
+    addEvaluation,
+    updateEvaluation,
+    deleteEvaluation,
     addTag,
     updateTag,
     deleteTag,

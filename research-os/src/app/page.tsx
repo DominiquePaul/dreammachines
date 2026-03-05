@@ -12,6 +12,15 @@ import {
   ArrowRight,
 } from "lucide-react";
 
+function fmtHours(h: number): string {
+  if (h === 0) return "0m";
+  const hours = Math.floor(h);
+  const mins = Math.round((h - hours) * 60);
+  if (hours === 0) return `${mins}m`;
+  if (mins === 0) return `${hours}h`;
+  return `${hours}h${mins}m`;
+}
+
 export default function Dashboard() {
   const { data } = useData();
 
@@ -81,7 +90,7 @@ export default function Dashboard() {
     },
     {
       label: "Total Hours",
-      value: totalHours.toFixed(1),
+      value: fmtHours(totalHours),
       icon: Clock,
       color: "text-rose-400",
       href: "/datasets",
@@ -171,7 +180,7 @@ export default function Dashboard() {
                         />
                       </div>
                       <span className="text-xs text-gray-400 w-16 text-right">
-                        {hours.toFixed(1)}h
+                        {fmtHours(hours)}
                       </span>
                     </div>
                   );
@@ -284,7 +293,7 @@ export default function Dashboard() {
                   <p className="text-sm text-white">{d.name}</p>
                   <p className="text-xs text-gray-500">
                     {d.metadata.episodeCount} episodes &middot;{" "}
-                    {d.metadata.estimatedHours}h
+                    {fmtHours(d.metadata.estimatedHours)}
                   </p>
                 </div>
                 <a

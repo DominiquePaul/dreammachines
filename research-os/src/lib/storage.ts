@@ -7,6 +7,7 @@ const EMPTY_DATA: ResearchData = {
   experiments: [],
   datasets: [],
   models: [],
+  evaluations: [],
   tags: [],
   lastSynced: "",
 };

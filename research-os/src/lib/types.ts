@@ -16,11 +16,12 @@ export interface DatasetMetadata {
 
 export interface Dataset {
   id: string;
-  hfId: string; // e.g., "dopaul/1500_chess_moves"
+  hfId: string; // e.g., "dopaul/1500_chess_moves" — empty for planned
   name: string;
   description: string;
   tags: string[]; // tag IDs
   metadata: DatasetMetadata;
+  status: "planned" | "synced"; // planned = not yet on HF
   hfUrl: string;
   downloads: number;
   lastModified: string;
@@ -76,11 +77,23 @@ export interface Hypothesis {
   updatedAt: string;
 }
 
+export interface Evaluation {
+  id: string;
+  experimentId: string | null;
+  modelId: string;
+  iterationId: string | null;
+  evalDatasetId: string | null; // eval_ dataset with video
+  outcome: "success" | "partial" | "failure";
+  notes: string;
+  createdAt: string;
+}
+
 export interface ResearchData {
   hypotheses: Hypothesis[];
   experiments: Experiment[];
   datasets: Dataset[];
   models: Model[];
+  evaluations: Evaluation[];
   tags: Tag[];
   lastSynced: string;
 }

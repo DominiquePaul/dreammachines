@@ -4,6 +4,54 @@ import type { Dataset, Model, ModelIteration, ResearchData, Tag } from "./types"
 const HF_API = "https://huggingface.co/api";
 const HF_USER = "dopaul";
 
+// Parse DreamHub metadata from HF README YAML front matter
+function parseReadmeMetadata(readme: string): {
+  tags: string[];
+  collectionConditions?: string;
+  teleoperatorInstructions?: string;
+  knownIssues?: string[];
+  notes?: string;
+} | null {
+  if (!readme.startsWith("---")) return null;
+  const endIdx = readme.indexOf("---", 3);
+  if (endIdx === -1) return null;
+
+  const yaml = readme.slice(3, endIdx).trim();
+  const body = readme.slice(endIdx + 3).trim();
+  const tags: string[] = [];
+
+  // Parse YAML tags
+  const tagsMatch = yaml.match(/tags:\n((?:\s+-\s+.+\n?)*)/);
+  if (tagsMatch) {
+    for (const line of tagsMatch[1].split("\n")) {
+      const m = line.match(/^\s+-\s+(.+)/);
+      if (m) tags.push(m[1].trim());
+    }
+  }
+
+  // Parse sections from body
+  const getSection = (heading: string): string | undefined => {
+    const re = new RegExp(`## ${heading}\\n([\\s\\S]*?)(?=\\n## |$)`, "i");
+    const m = body.match(re);
+    return m ? m[1].trim() : undefined;
+  };
+
+  const collectionConditions = getSection("Collection Conditions");
+  const teleoperatorInstructions = getSection("Teleoperator Instructions");
+  const notesSection = getSection("Notes");
+
+  const issuesSection = getSection("Known Issues");
+  const knownIssues = issuesSection
+    ? issuesSection.split("\n").map(l => l.replace(/^-\s*/, "").trim()).filter(Boolean)
+    : undefined;
+
+  if (!tags.length && !collectionConditions && !teleoperatorInstructions && !knownIssues && !notesSection) {
+    return null;
+  }
+
+  return { tags, collectionConditions, teleoperatorInstructions, knownIssues, notes: notesSection };
+}
+
 interface HFDataset {
   id: string;
   lastModified: string;
@@ -105,10 +153,27 @@ export async function syncFromHuggingFace(existing: ResearchData): Promise<Resea
   const hfModels: HFModel[] = await modelsRes.json();
   console.log("[HF Sync] Got", hfDatasets.length, "datasets,", hfModels.length, "models");
 
+  // Fetch READMEs in parallel for metadata extraction
+  const readmeMap = new Map<string, ReturnType<typeof parseReadmeMetadata>>();
+  const readmeResults = await Promise.allSettled(
+    hfDatasets.map(async (ds) => {
+      const res = await fetch(`https://huggingface.co/datasets/${ds.id}/raw/main/README.md`);
+      if (!res.ok) return { id: ds.id, readme: null };
+      const text = await res.text();
+      return { id: ds.id, readme: text };
+    })
+  );
+  for (const result of readmeResults) {
+    if (result.status === "fulfilled" && result.value.readme) {
+      readmeMap.set(result.value.id, parseReadmeMetadata(result.value.readme));
+    }
+  }
+
   const data: ResearchData = {
     ...existing,
     datasets: [...existing.datasets],
     models: [...existing.models],
+    evaluations: [...existing.evaluations],
     tags: [...existing.tags],
   };
 
@@ -140,7 +205,19 @@ export async function syncFromHuggingFace(existing: ResearchData): Promise<Resea
 
   // Sync datasets
   for (const hfDs of hfDatasets) {
-    const existingDs = data.datasets.find(d => d.hfId === hfDs.id);
+    const dsName = hfDs.id.split("/")[1] || hfDs.id;
+    // Match by hfId first, then check for planned entries matching by name
+    let existingDs = data.datasets.find(d => d.hfId === hfDs.id);
+    if (!existingDs) {
+      const planned = data.datasets.find(d => d.status === "planned" && d.name === dsName);
+      if (planned) {
+        // Upgrade planned → synced
+        planned.hfId = hfDs.id;
+        planned.hfUrl = `https://huggingface.co/datasets/${hfDs.id}`;
+        planned.status = "synced";
+        existingDs = planned;
+      }
+    }
     const inferred = inferDatasetMeta(hfDs.id, hfDs.tags || []);
     const tagIds: string[] = [];
     if (inferred.taskType !== "unknown") {
@@ -151,7 +228,6 @@ export async function syncFromHuggingFace(existing: ResearchData): Promise<Resea
       const tid = findTagId(inferred.robotForm);
       if (tid) tagIds.push(tid);
     }
-    const dsName = hfDs.id.split("/")[1] || hfDs.id;
     if (dsName.includes("eval_")) {
       const tid = findTagId("evaluation");
       if (tid) tagIds.push(tid);
@@ -160,9 +236,26 @@ export async function syncFromHuggingFace(existing: ResearchData): Promise<Resea
       if (tid) tagIds.push(tid);
     }
 
+    const readmeMeta = readmeMap.get(hfDs.id);
+
     if (existingDs) {
       existingDs.downloads = hfDs.downloads || 0;
       existingDs.lastModified = hfDs.lastModified || existingDs.lastModified;
+      // Merge README metadata into existing dataset (only fill empty fields)
+      if (readmeMeta) {
+        if (!existingDs.metadata.collectionConditions && readmeMeta.collectionConditions) {
+          existingDs.metadata.collectionConditions = readmeMeta.collectionConditions;
+        }
+        if (!existingDs.metadata.teleoperatorInstructions && readmeMeta.teleoperatorInstructions) {
+          existingDs.metadata.teleoperatorInstructions = readmeMeta.teleoperatorInstructions;
+        }
+        if (existingDs.metadata.knownIssues.length === 0 && readmeMeta.knownIssues?.length) {
+          existingDs.metadata.knownIssues = readmeMeta.knownIssues;
+        }
+        if (!existingDs.metadata.notes && readmeMeta.notes) {
+          existingDs.metadata.notes = readmeMeta.notes;
+        }
+      }
     } else {
       const modified = hfDs.lastModified || new Date().toISOString();
       data.datasets.push({
@@ -172,13 +265,14 @@ export async function syncFromHuggingFace(existing: ResearchData): Promise<Resea
         description: hfDs.description || "",
         tags: tagIds,
         metadata: {
-          collectionConditions: "",
-          teleoperatorInstructions: "",
-          knownIssues: [],
-          notes: "",
+          collectionConditions: readmeMeta?.collectionConditions || "",
+          teleoperatorInstructions: readmeMeta?.teleoperatorInstructions || "",
+          knownIssues: readmeMeta?.knownIssues || [],
+          notes: readmeMeta?.notes || "",
           estimatedHours: inferred.estimatedHours,
           episodeCount: inferred.episodeCount,
         },
+        status: "synced",
         hfUrl: `https://huggingface.co/datasets/${hfDs.id}`,
         downloads: hfDs.downloads || 0,
         lastModified: modified,
@@ -248,6 +342,24 @@ export async function syncFromHuggingFace(existing: ResearchData): Promise<Resea
         lastModified: dates[dates.length - 1],
         createdAt: dates[0],
       });
+    }
+  }
+
+  // Auto-detect trainedOn relationships based on naming patterns
+  // Model names often contain dataset names (e.g., model "1500_chess_moves_act" → dataset "1500_chess_moves")
+  const datasetsByName = new Map(data.datasets.map(d => [d.name, d.id]));
+  for (const model of data.models) {
+    for (const iteration of model.iterations) {
+      if (iteration.trainedOn.length > 0) continue; // already has links
+      const iterName = iteration.version;
+      // Find datasets whose name is a prefix of the iteration name
+      for (const [dsName, dsId] of datasetsByName) {
+        if (dsName.length >= 3 && iterName.startsWith(dsName)) {
+          if (!iteration.trainedOn.includes(dsId)) {
+            iteration.trainedOn.push(dsId);
+          }
+        }
+      }
     }
   }
 

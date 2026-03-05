@@ -1,55 +1,67 @@
-# Research OS - Changelog
+# DreamHub Changelog
 
-## 2026-03-03 — Improvements Round 2
+## 2026-03-04 (session 3)
 
-### Data Management
-- **Export**: Download all Research OS data as a timestamped JSON backup
-- **Import**: Restore from a JSON backup file
-- **Reset**: Clear all data and re-sync from HuggingFace (with confirmation dialog)
+### Features
+- **Supabase migration** — Schema, RLS policies, auth (email+password), frontend refactor from localStorage to Supabase
+- **HF token security** — Token stored server-side only, all HF write ops go through API routes
+- **HF metadata push (bidirectional)** — "Push to HF" button writes tags + metadata to README; during sync, READMEs are fetched and parsed to fill empty metadata fields
+- **Unlabelled dataset notification** — Banner shows count of untagged datasets, toggle to filter
+- **Auto-detect dataset-model relationships** — `trainedOn` auto-detected by name prefix matching; "Related Models" section on dataset detail view
+- **Data collection log** — "Plan Collection" creates placeholder datasets (status=planned), auto-matched by name during HF sync
+- **Evaluation tracking** — New `/evaluations` page: log rollouts (model, checkpoint, outcome, notes), link eval_ datasets, per-model success rate stats
+- **Unified delete** — Deleting a dataset removes from both DreamHub and HuggingFace; requires typing `permanently delete [name]` to confirm
+- **Hours display** — Shown as `5h3m` instead of decimal
+- **Custom domain** — `hub.dream-machines.eu` active
 
-### Dashboard
-- Added **Episodes by Tag** breakdown alongside Hours by Tag
-- Added **Experiment Status** breakdown (planned/in-progress/completed/failed)
-- Added **Checkpoints** stat card showing total model iterations
-- Stat cards are now **clickable** — navigate to relevant page
-- Active hypotheses are now **clickable** — navigate to experiments page
-- Added "View all" links to experiments and datasets pages
-
-### Experiments Page
-- **Full experiment editing**: click pencil icon to edit name, notes, results, status
-- **Dataset linking**: search and select datasets to link to experiments
-- **Model linking**: search and select models to link to experiments
-- Linked assets shown as removable pills during editing
-
-### Datasets Page
-- **Tag assignment UI**: click "Edit" next to Tags to toggle tags on/off
-- Tags shown as colored toggle buttons with checkmarks
-
-### Models Page
-- **Tag assignment UI**: same toggle interface as datasets
-- **Model description editing**: click edit to add/change model group descriptions
-- **Iteration notes editing**: pencil icon on each checkpoint to add/edit notes
-- **Config JSON editing**: enter/edit hyperparameters as JSON per iteration
-- **Show/hide config**: toggle to view config JSON for iterations that have it
-- **trainedOn display**: shows linked training datasets on iterations
-
-### Graph Page
-- **Click-to-navigate**: clicking a node navigates to the relevant page
-- Nodes now show pointer cursor to indicate interactivity
-- Updated help text: "Click a node to navigate"
+### Infra
+- Renamed Vercel project and npm package to "dreamhub"
+- Added admin user via Supabase auth
+- Fixed GoTrue NULL token columns issue (requires empty strings, not NULLs)
 
 ---
 
-## 2026-03-03 — Initial Build
+## 2026-03-03 (session 2)
 
-### What was built
+### Features
+- **DreamHub rebrand** — Renamed from "Research OS" to "DreamHub"
+- **HF rename/delete** — Server-side API routes for renaming and deleting HF datasets
+- **New default tags** — Task, robot, status, and policy type tags auto-created during sync
+- **SPEC.md** — Architecture documentation added
+
+### Data Management
+- Export: download all data as timestamped JSON backup
+- Import: restore from JSON backup
+- Reset: clear all data and re-sync from HuggingFace
+
+### Dashboard
+- Episodes by Tag breakdown alongside Hours by Tag
+- Experiment Status breakdown (planned/in-progress/completed/failed)
+- Checkpoints stat card showing total model iterations
+- Clickable stat cards navigate to relevant pages
+
+### Experiments Page
+- Full experiment editing (name, notes, results, status)
+- Dataset and model linking via search dropdowns
+
+### Datasets Page
+- Tag assignment UI with colored toggle buttons
+
+### Models Page
+- Tag assignment, description editing, iteration notes, config JSON editing
+- trainedOn display for linked training datasets
+
+### Graph Page
+- Click-to-navigate on nodes
+
+---
+
+## 2026-03-03 (session 1)
+
 - Full Next.js 16 app with 6 pages: Dashboard, Experiments, Graph, Datasets, Models, Tags
 - Client-side architecture using localStorage + direct HuggingFace API calls
-- Auto-sync: fetches all datasets (66) and models (64, grouped into 27 base models) from HF user `dopaul`
+- Auto-sync: fetches all datasets and models from HF user `dopaul`
 - Seed data: 4 hypotheses with 7 experiments pre-populated and linked to real HF assets
-- Deployed to Vercel at https://research-os-theta.vercel.app
-
-### Bug fixes
+- Deployed to Vercel
 - Fixed `.gitignore` blocking `research-os/src/lib/` (root `lib/` pattern)
-- Refactored from server-side filesystem storage to client-side localStorage (Vercel serverless has ephemeral disk)
-- Fixed HF sync crash: Models API returns `createdAt` but not `lastModified` — added `getModelDate()` fallback
+- Fixed HF sync crash: Models API `createdAt`/`lastModified` fallback
