@@ -7,6 +7,55 @@ import { useResearch } from "@/components/Shell";
 import { CATEGORIES } from "@/lib/types";
 import type { Paper } from "@/lib/types";
 
+function SyncButton({ onDone }: { onDone: () => void }) {
+  const [syncing, setSyncing] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setResult(null);
+    try {
+      const res = await fetch("/api/semantic-scholar/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ batchSize: 10 }),
+      });
+      const data = await res.json();
+      setResult(`Synced ${data.synced}, ${data.notFound} not found`);
+      onDone();
+    } catch {
+      setResult("Sync failed");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <button
+        onClick={handleSync}
+        disabled={syncing}
+        style={{
+          padding: "6px 14px",
+          background: "var(--bg-surface)",
+          border: "1px solid var(--border-default)",
+          borderRadius: 6,
+          color: "var(--text-secondary)",
+          fontSize: "0.75rem",
+          cursor: syncing ? "wait" : "pointer",
+        }}
+      >
+        {syncing ? "Syncing..." : "Sync Citations"}
+      </button>
+      {result && (
+        <span style={{ fontSize: "0.7rem", color: "var(--text-tertiary)" }}>
+          {result}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function PaperCard({ paper }: { paper: Paper }) {
   const authorStr = paper.authors?.map((a) => a.name).join(", ") || "";
   const cat = CATEGORIES[paper.category];
@@ -35,9 +84,16 @@ function PaperCard({ paper }: { paper: Paper }) {
           ))}
         </div>
       )}
-      {paper.slug && (
-        <div className="paper-card__viz-badge">Has visualization</div>
-      )}
+      <div className="paper-card__footer">
+        {paper.citation_count > 0 && (
+          <span className="paper-card__citations">
+            {paper.citation_count} citations
+          </span>
+        )}
+        {paper.slug && (
+          <span className="paper-card__viz-badge">Has visualization</span>
+        )}
+      </div>
     </div>
   );
 
@@ -48,7 +104,7 @@ function PaperCard({ paper }: { paper: Paper }) {
 }
 
 export default function CollectionPage() {
-  const { papers, tags, loading } = useResearch();
+  const { papers, tags, loading, refresh } = useResearch();
   const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(
@@ -104,6 +160,7 @@ export default function CollectionPage() {
         <p className="collection__subtitle">
           {papers.length} papers tracked across {Object.keys(catCounts).length} categories
         </p>
+        <SyncButton onDone={refresh} />
       </div>
 
       {/* Stats */}

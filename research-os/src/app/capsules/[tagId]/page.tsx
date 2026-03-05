@@ -5,24 +5,44 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useResearch } from "@/components/Shell";
 import { fetchPapersByTag } from "@/lib/supabase-db";
+import { supabase } from "@/lib/supabase";
 import { CATEGORIES } from "@/lib/types";
-import type { Paper, Tag } from "@/lib/types";
+import type { Paper, Tag, Note } from "@/lib/types";
 
 export default function CapsulePage() {
   const params = useParams();
   const tagId = params.tagId as string;
   const { tags, papers: allPapers } = useResearch();
   const [capsulePapers, setCapsulePapers] = useState<Paper[]>([]);
+  const [paperNotes, setPaperNotes] = useState<Map<string, Note[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
   const tag = useMemo(() => tags.find((t) => t.id === tagId), [tags, tagId]);
 
   useEffect(() => {
-    fetchPapersByTag(tagId).then((p) => {
-      setCapsulePapers(p);
+    async function load() {
+      const papers = await fetchPapersByTag(tagId);
+      setCapsulePapers(papers);
+
+      // Also fetch notes for all papers in capsule
+      if (papers.length > 0) {
+        const { data: notes } = await supabase
+          .from("research_notes")
+          .select("*")
+          .in("paper_id", papers.map((p) => p.id));
+
+        const noteMap = new Map<string, Note[]>();
+        (notes || []).forEach((n) => {
+          const arr = noteMap.get(n.paper_id) || [];
+          arr.push(n as Note);
+          noteMap.set(n.paper_id, arr);
+        });
+        setPaperNotes(noteMap);
+      }
       setLoading(false);
-    });
+    }
+    load();
   }, [tagId]);
 
   const exportContext = () => {
@@ -30,14 +50,23 @@ export default function CapsulePage() {
 
     const lines = [
       `# Capsule: ${tag?.name || "Unknown Tag"}`,
+      tag?.description ? `\n${tag.description}\n` : "",
       `${capsulePapers.length} papers\n`,
       "## Papers\n",
-      ...capsulePapers.map(
-        (p) =>
-          `- **${p.title}** (${p.authors?.map((a) => a.name).join(", ") || "Unknown"}, ${p.year || "N/A"}): ${p.one_liner || "No summary"}`
-      ),
-      "",
     ];
+
+    capsulePapers.forEach((p) => {
+      lines.push(`### ${p.title} (${p.authors?.map((a) => a.name).join(", ") || "Unknown"}, ${p.year || "N/A"})`);
+      if (p.one_liner) lines.push(`**Summary:** ${p.one_liner}`);
+      if (p.abstract) lines.push(`**Abstract:** ${p.abstract}`);
+      const notes = paperNotes.get(p.id) || [];
+      notes.forEach((n) => {
+        if (n.granularity === "rich" && n.content) {
+          lines.push(`\n**Notes:**\n${n.content}`);
+        }
+      });
+      lines.push("");
+    });
 
     const text = lines.join("\n");
     navigator.clipboard.writeText(text);

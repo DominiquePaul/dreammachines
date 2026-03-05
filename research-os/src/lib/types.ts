@@ -7,6 +7,10 @@ export interface Paper {
   abstract: string | null;
   one_liner: string | null;
   category: string;
+  semantic_scholar_id: string | null;
+  semantic_scholar_url: string | null;
+  citation_count: number;
+  citation_velocity: number;
   created_at: string;
   updated_at: string;
   // Joined data
@@ -21,6 +25,9 @@ export interface Author {
   affiliation: string | null;
   affiliation_country: string | null;
   semantic_scholar_id: string | null;
+  h_index: number | null;
+  paper_count: number | null;
+  homepage_url: string | null;
   created_at: string;
 }
 
@@ -63,6 +70,30 @@ export interface CapsuleSynthesis {
   tag_id: string;
   synthesis_text: string;
   generated_at: string;
+}
+
+export interface ChatSession {
+  id: string;
+  title: string;
+  tag_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  session_id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  created_at: string;
+}
+
+export interface Citation {
+  id: string;
+  citing_paper_id: string;
+  cited_paper_id: string;
+  is_in_collection: boolean;
+  created_at: string;
 }
 
 // Category display info

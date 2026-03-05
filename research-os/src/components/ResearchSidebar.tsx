@@ -48,6 +48,9 @@ export default function ResearchSidebar() {
   const navItems = [
     { href: "/", label: "Collection", icon: "C", sublabel: `${papers.length} papers` },
     { href: "/lineage", label: "Lineage Graph", icon: "L", sublabel: "Paper dependencies" },
+    { href: "/discover", label: "Discovery", icon: "D", sublabel: "New papers" },
+    { href: "/authors", label: "Authors", icon: "A", sublabel: "Author network" },
+    { href: "/chat", label: "Chat", icon: "?", sublabel: "Ask Claude" },
   ];
 
   // Category stats

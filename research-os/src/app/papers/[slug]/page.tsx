@@ -214,6 +214,30 @@ export default function PaperDetailPage() {
       {authorStr && <p className="paper-detail__authors">{authorStr}</p>}
       {paper.one_liner && <div className="paper-detail__oneliner">{paper.one_liner}</div>}
 
+      {/* Citation & External Links */}
+      {(paper.citation_count > 0 || paper.semantic_scholar_url) && (
+        <div className="paper-detail__citations">
+          {paper.citation_count > 0 && (
+            <span className="paper-detail__citation-badge">
+              {paper.citation_count} citations
+              {paper.citation_velocity > 0 && (
+                <span className="paper-detail__velocity">+{paper.citation_velocity} recent</span>
+              )}
+            </span>
+          )}
+          {paper.semantic_scholar_url && (
+            <a
+              href={paper.semantic_scholar_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontSize: "0.8rem", color: "var(--accent-primary)" }}
+            >
+              Semantic Scholar
+            </a>
+          )}
+        </div>
+      )}
+
       {/* Interactive Visualization Link */}
       {hasVizPage && (
         <Link
