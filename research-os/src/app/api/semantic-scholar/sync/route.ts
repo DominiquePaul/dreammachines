@@ -1,21 +1,14 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import {
   getPaperByArxivId,
   searchPaperByTitle,
 } from "@/lib/semantic-scholar";
-
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-}
+import { getServerSupabase } from "@/lib/supabase-server";
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export async function POST(request: Request) {
-  const supabase = getSupabase();
+  const supabase = getServerSupabase(request.headers.get("authorization"));
   const body = await request.json().catch(() => ({}));
   const batchSize = body.batchSize || 10;
 

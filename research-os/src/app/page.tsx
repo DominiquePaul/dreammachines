@@ -8,6 +8,7 @@ import { CATEGORIES } from "@/lib/types";
 import type { Paper } from "@/lib/types";
 
 function SyncButton({ onDone }: { onDone: () => void }) {
+  const { session } = useResearch();
   const [syncing, setSyncing] = useState(false);
   const [result, setResult] = useState<string | null>(null);
 
@@ -17,11 +18,14 @@ function SyncButton({ onDone }: { onDone: () => void }) {
     try {
       const res = await fetch("/api/semantic-scholar/sync", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+        },
         body: JSON.stringify({ batchSize: 10 }),
       });
       const data = await res.json();
-      setResult(`Synced ${data.synced}, ${data.notFound} not found`);
+      setResult(`Synced ${data.synced}, ${data.notFound || 0} not found`);
       onDone();
     } catch {
       setResult("Sync failed");

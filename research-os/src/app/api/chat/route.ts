@@ -1,13 +1,6 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { createClient } from "@supabase/supabase-js";
-
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-}
+import { getServerSupabase } from "@/lib/supabase-server";
 
 export async function POST(request: Request) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -19,7 +12,7 @@ export async function POST(request: Request) {
   }
 
   const { messages, sessionId, tagId, systemPrompt } = await request.json();
-  const supabase = getSupabase();
+  const supabase = getServerSupabase(request.headers.get("authorization"));
   const client = new Anthropic({ apiKey });
 
   // Build context from capsule if tagId provided

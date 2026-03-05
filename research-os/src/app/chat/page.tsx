@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase";
 import type { ChatSession, ChatMessage } from "@/lib/types";
 
 export default function ChatPage() {
-  const { tags } = useResearch();
+  const { tags, session } = useResearch();
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSession, setActiveSession] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -98,7 +98,10 @@ export default function ChatPage() {
 
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+        },
         body: JSON.stringify({
           messages: chatMessages,
           sessionId,

@@ -3,9 +3,11 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { useResearch } from "@/components/Shell";
 import type { DiscoveryItem } from "@/lib/types";
 
 export default function DiscoverPage() {
+  const { session } = useResearch();
   const [items, setItems] = useState<DiscoveryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -37,7 +39,10 @@ export default function DiscoverPage() {
     try {
       const res = await fetch("/api/semantic-scholar/discover", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+        },
         body: JSON.stringify({ batchSize: 10 }),
       });
       const data = await res.json();

@@ -1,19 +1,12 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getServerSupabase } from "@/lib/supabase-server";
 
 // MCP-like API for exposing Research OS data to Claude Code and other clients
 // Tools: get_capsule_context, get_paper_notes, search_papers, list_papers_by_tag
 
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-}
-
 export async function POST(request: Request) {
   const { tool, params } = await request.json();
-  const supabase = getSupabase();
+  const supabase = getServerSupabase(request.headers.get("authorization"));
 
   switch (tool) {
     case "get_capsule_context": {
