@@ -1,0 +1,28 @@
+# Dream Machines
+
+> Dream Machines is a robotics startup founded by researchers from ETH Zürich, building AI-powered robotic arms that let non-roboticists automate variable, repetitive manufacturing work in European SMEs by teaching robots through demonstration.
+
+- Website: https://dream-machines.eu
+- Contact: team@dream-machines.eu
+- Founded by Dominique Paul, ML researcher from ETH Zürich (NeurIPS published)
+- Based in Zürich, Switzerland
+- Currently preparing first pilot projects with European manufacturers
+
+## Company
+
+Dream Machines addresses a core challenge in European manufacturing: skilled labour is scarce, experienced operators are retiring, and routine work has become a global commodity. Traditional automation requires robotics specialists and lengthy integration projects, making it impractical for the variable, low-volume tasks common in SMEs.
+
+Dream Machines develops robotic AI (Visional Language Action models) packaged as a full solution that integrates into existing workstations. Instead of programming every movement, operators demonstrate the task through teleoperation. When products or processes change, the automation is updated through new demonstrations rather than reprogramming.
+
+Target tasks include PCB testing, battery slotting, machine tending with variable parts, picking and sorting irregular objects, and quality control — work that is essential to operations but too inconsistent for traditional automation.
+
+## Target Customers
+
+European small and medium-sized manufacturers (German Mittelstand and equivalents) with variable, repetitive workbench tasks that are essential to operations but too inconsistent for traditional automation. Typical customers have a few hundred employees and are often global leaders in their niche. They face labour shortages, rising costs, and retiring experienced operators, but lack the robotics expertise or integration budgets for conventional industrial automation.
+
+## Website
+
+Bilingual (EN/DE) landing page with waitlist signup and legal imprint.
+
+- [Homepage](https://dream-machines.eu): Main landing page with company narrative, waitlist signup, and ASCII globe
+- [Imprint](https://dream-machines.eu/imprint): German legal imprint page (Impressum) per §5 TMG

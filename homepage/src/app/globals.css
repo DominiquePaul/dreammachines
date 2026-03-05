@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+@theme {
+  --color-navy: #00288E;
+  --color-navy-light: #1a3e9e;
+  --color-navy-muted: #6b86be;
+  --color-cream: #F5F7FF;
+  --font-season: var(--font-season-collective), serif;
+  --font-hasklig: var(--font-hasklig), monospace;
+  --font-dm-mono: var(--font-dm-mono), monospace;
+}
+
+/* Background with noise texture
+   Figma: Noise Mono, size 0.4, density 100%, #000000 at 15% */
+.bg-nerdy {
+  background-color: var(--color-cream);
+  position: relative;
+}
+
+.bg-nerdy::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.25;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='4' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 200px 200px;
+}
+
+.bg-nerdy > * {
+  position: relative;
+  z-index: 1;
+}
