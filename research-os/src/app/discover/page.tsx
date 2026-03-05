@@ -42,7 +42,7 @@ export default function DiscoverPage() {
       });
       const data = await res.json();
       setSyncResult(
-        `Found ${data.discovered} new papers (checked ${data.papersChecked} papers)`
+        data.message || `Found ${data.discovered} new papers (checked ${data.papersChecked} papers)`
       );
       await loadItems();
     } catch {

@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     .limit(batchSize);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  if (!papers?.length) return NextResponse.json({ message: "No synced papers to check", discovered: 0 });
+  if (!papers?.length) return NextResponse.json({ message: "No synced papers to check. Run 'Sync Citations' on the collection page first.", discovered: 0, papersChecked: 0 });
 
   // Get all existing paper arxiv_ids and discovery queue arxiv_ids to avoid duplicates
   const { data: existingPapers } = await supabase
