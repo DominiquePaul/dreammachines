@@ -159,32 +159,6 @@ export default function ResearchSidebar() {
             </div>
           )}
 
-          {/* Viz Pages (legacy) */}
-          <div className="ros-sidebar__section">
-            <div className="ros-sidebar__section-title">Visualizations</div>
-            {papers
-              .filter((p) => p.slug)
-              .sort((a, b) => (a.title > b.title ? 1 : -1))
-              .slice(0, collapsed ? 0 : undefined)
-              .map((p) => (
-                <Link
-                  key={p.slug}
-                  href={`/methods/${p.slug}`}
-                  className={`ros-sidebar__link ${pathname === `/methods/${p.slug}` ? "ros-sidebar__link--active" : ""}`}
-                  onClick={() => setMobileOpen(false)}
-                >
-                  <div className="ros-sidebar__icon" style={{ borderColor: CATEGORIES[p.category]?.color || "var(--border-default)" }}>
-                    {p.title.slice(0, 2)}
-                  </div>
-                  <div className="ros-sidebar__text">
-                    <span className="ros-sidebar__text-primary">{p.title}</span>
-                    <span className="ros-sidebar__text-secondary">
-                      {p.authors?.map((a) => a.name).join(", ") || ""}{p.year ? `, ${p.year}` : ""}
-                    </span>
-                  </div>
-                </Link>
-              ))}
-          </div>
         </div>
 
         {/* Footer */}
