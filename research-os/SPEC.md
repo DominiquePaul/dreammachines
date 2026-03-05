@@ -161,27 +161,33 @@ Semantic Scholar allows 100 req/sec (free). Cron jobs batch requests across runs
 - [x] Responsive sidebar with categories, tags, visualization links
 - [x] All 20 existing interactive viz pages preserved at `/methods/*` with MathJax
 - [x] Lineage graph preserved at `/lineage` (still uses static JSON — migration deferred)
-- [ ] Deploy to Vercel (manual step required — see QUESTIONS.md)
+- [x] Deployed to Vercel (`research-os` project, `research.dream-machines.eu`)
 
-### Phase 2: External Data
-- Semantic Scholar integration (citation counts, author data, references)
-- Cron jobs for weekly citation refresh + daily discovery
-- Discovery queue with to-read list
-- Author network page
+### Phase 2: External Data — DONE (2026-03-05)
+- [x] Semantic Scholar API client (`src/lib/semantic-scholar.ts`)
+- [x] `/api/semantic-scholar/sync` — batch sync citation counts, author affiliations, h-index, S2 IDs
+- [x] `/api/semantic-scholar/discover` — find papers citing collection papers, add to discovery queue
+- [x] Discovery feed page (`/discover`) with status tabs (unread/to-read/dismissed/added)
+- [x] Author network page (`/authors`) with filters: country, paper count, h-index, search
+- [x] Citation count + velocity displayed on paper cards and detail pages
+- [x] "Sync Citations" button on collection page for on-demand S2 sync
+- [x] DB: citation_count, citation_velocity, semantic_scholar_id on research_papers; h_index, paper_count on research_authors; research_citations table
 
-### Phase 3: LLM & Context
-- Paper embeddings via pgvector
-- Capsule context assembly + export
-- Rich note augmentation (subagents read papers, save findings)
-- MCP server for Claude Code integration
-- Semantic search across collection
+### Phase 3: LLM & Context — DONE (2026-03-05)
+- [x] `/api/chat` — Claude API proxy with capsule context pre-loading
+- [x] `/chat` page — full chat UI with session management, capsule selector, markdown rendering
+- [x] `/api/mcp` — REST API with tools: get_capsule_context, get_paper_notes, search_papers, list_papers_by_tag
+- [x] Enhanced capsule export: includes abstracts + rich notes (not just one-liners)
+- [x] Chat sessions + messages stored in Supabase (research_chat_sessions, research_chat_messages)
+- [ ] Paper embeddings via pgvector (needs embedding API integration)
+- [ ] Semantic search across collection (depends on embeddings)
 
-### Phase 4: Intelligence
-- In-app LLM chat with capsule context
-- Citation velocity visualization
-- Semantic similarity clustering (auto-suggest tags)
-- "Confirmed learnings" detection — findings validated across multiple papers
-- Mini reading velocity dashboard
+### Phase 4: Intelligence — PARTIAL (2026-03-05)
+- [x] In-app LLM chat with capsule context
+- [x] Citation velocity tracking (change between S2 syncs)
+- [ ] Semantic similarity clustering (auto-suggest tags) — needs embeddings
+- [ ] "Confirmed learnings" detection — future
+- [ ] Mini reading velocity dashboard — future
 
 ### Phase 5: DreamHub Bridge (future)
 - Link papers to DreamHub experiments ("I read this, here's my reproduction")
